@@ -17,3 +17,7 @@ backend/dist/
 # IDE
 .vscode/
 .idea/
+
+# Frontend
+frontend/.next/
+frontend/out/
