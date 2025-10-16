@@ -21,3 +21,4 @@ backend/dist/
 # Frontend
 frontend/.next/
 frontend/out/
+/generated/prisma

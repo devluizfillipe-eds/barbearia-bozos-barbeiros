@@ -36,3 +36,4 @@ lerna-debug.log*
 
 # arquivo env
 .env
+/generated/prisma

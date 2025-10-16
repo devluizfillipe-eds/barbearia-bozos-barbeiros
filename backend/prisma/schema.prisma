@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  telefone     String   @unique
+  data_criacao DateTime @default(now())
+
+  queueEntries Queue[]
+
+  @@map("users")
+}
+
+model Barber {
+  id         Int      @id @default(autoincrement())
+  nome       String
+  login      String   @unique
+  senha_hash String
+  ativo      Boolean  @default(true)
+  data_criacao DateTime @default(now())
+
+  queueEntries Queue[]
+
+  @@map("barbers")
+}
+
+model Admin {
+  id         Int      @id @default(autoincrement())
+  nome       String
+  login      String   @unique
+  senha_hash String
+  data_criacao DateTime @default(now())
+
+  @@map("admins")
+}
+
+model Queue {
+  id          Int       @id @default(autoincrement())
+  cliente_id  Int
+  barbeiro_id Int
+  status      QueueStatus @default(AGUARDANDO)
+  posicao     Int
+  hora_entrada DateTime  @default(now())
+  hora_saida  DateTime?
+
+  cliente  User   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  barbeiro Barber @relation(fields: [barbeiro_id], references: [id], onDelete: Cascade)
+
+  @@map("queue")
+}
+
+model Service {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  descricao    String?
+  tempo_estimado Int    // em minutos
+  preco        Float?
+  ativo        Boolean  @default(true)
+
+  @@map("services")
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  acao      String
+  detalhes  String?
+  timestamp DateTime @default(now())
+  usuario_id Int?
+  usuario_tipo String? // 'cliente', 'barbeiro', 'admin'
+
+  @@map("logs")
+}
+
+enum QueueStatus {
+  AGUARDANDO
+  ATENDENDO
+  ATENDIDO
+  DESISTIU
+  FALTOU
+}
