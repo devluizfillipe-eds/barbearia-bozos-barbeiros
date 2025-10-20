@@ -1,17 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { AppService } from './app.service';
+import { PrismaService } from './prisma/prisma.service';
 
 @Controller()
 export class AppController {
-  constructor(
-    private readonly appService: AppService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  getHello(): string {
-    const port = this.configService.get<string>('PORT');
-    return `${this.appService.getHello()} - Servidor rodando na porta ${port}`;
+  async getHello() {
+    const barbersCount = await this.prisma.barber.count();
+    return {
+      message: 'Barbearia Bozos Barbeiros - API Conectada!',
+      database: 'Conexão com PostgreSQL estabelecida',
+      barbersCount,
+    };
   }
 }
