@@ -27,6 +27,7 @@ model Barber {
   login      String   @unique
   senha_hash String
   ativo      Boolean  @default(true)
+  disponivel   Boolean  @default(true) 
   data_criacao DateTime @default(now())
 
   queueEntries Queue[]

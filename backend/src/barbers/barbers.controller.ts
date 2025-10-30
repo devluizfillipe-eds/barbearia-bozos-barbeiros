@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  UseGuards,
 } from '@nestjs/common';
 import { BarbersService } from './barbers.service';
 import { CreateBarberDto } from './dto/create-barber.dto';
@@ -26,6 +25,11 @@ export class BarbersController {
     return this.barbersService.findAll();
   }
 
+  @Get('disponiveis')
+  getDisponiveis() {
+    return this.barbersService.getDisponiveis();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.barbersService.findOne(parseInt(id));
@@ -34,6 +38,11 @@ export class BarbersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateBarberDto: UpdateBarberDto) {
     return this.barbersService.update(parseInt(id), updateBarberDto);
+  }
+
+  @Patch(':id/disponibilidade')
+  toggleDisponibilidade(@Param('id') id: string) {
+    return this.barbersService.toggleDisponibilidade(parseInt(id));
   }
 
   @Delete(':id')

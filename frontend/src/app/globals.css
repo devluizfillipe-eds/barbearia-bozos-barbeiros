@@ -1,6 +1,26 @@
+@import url("https://fonts.googleapis.com/css2?family=Almendra:wght@400;700&display=swap");
 @import "tailwindcss";
 
+:root {
+  --bg-dark: #2e2d37;
+  --card-bg: #4b4950;
+  --accent: #f2b63a;
+}
+
 body {
-  background: #312e38;
+  background: var(--bg-dark);
   color: #f4ede8;
+  font-family: "Almendra", serif;
+  font-weight: 400;
+}
+
+.font-regular {
+  font-family: "Almendra", serif;
+  font-weight: 400;
+}
+
+.font-title {
+  font-family: "Almendra", serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
 }

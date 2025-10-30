@@ -54,6 +54,27 @@ export class BarbersService {
         nome: true,
         login: true,
         ativo: true,
+        disponivel: true,
+        data_criacao: true,
+      },
+      orderBy: { nome: 'asc' },
+    });
+
+    return barbers;
+  }
+
+  async getDisponiveis() {
+    const barbers = await this.prisma.barber.findMany({
+      where: {
+        ativo: true,
+        disponivel: true,
+      },
+      select: {
+        id: true,
+        nome: true,
+        login: true,
+        ativo: true,
+        disponivel: true,
         data_criacao: true,
       },
       orderBy: { nome: 'asc' },
@@ -70,6 +91,7 @@ export class BarbersService {
         nome: true,
         login: true,
         ativo: true,
+        disponivel: true,
         data_criacao: true,
       },
     });
@@ -120,6 +142,36 @@ export class BarbersService {
         acao: 'BARBEIRO_ATUALIZADO',
         detalhes: `Barbeiro ${updatedBarber.nome} atualizado`,
         usuario_tipo: 'admin',
+      },
+    });
+
+    const { senha_hash: _, ...result } = updatedBarber;
+    return result;
+  }
+
+  async toggleDisponibilidade(id: number) {
+    const barber = await this.prisma.barber.findUnique({
+      where: { id },
+    });
+
+    if (!barber) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
+
+    const updatedBarber = await this.prisma.barber.update({
+      where: { id },
+      data: { disponivel: !barber.disponivel },
+    });
+
+    // Log da ação
+    await this.prisma.log.create({
+      data: {
+        acao: barber.disponivel
+          ? 'BARBEIRO_INDISPONIVEL'
+          : 'BARBEIRO_DISPONIVEL',
+        detalhes: `Barbeiro ${updatedBarber.nome} marcado como ${updatedBarber.disponivel ? 'disponível' : 'indisponível'}`,
+        usuario_id: id,
+        usuario_tipo: 'barbeiro',
       },
     });
 

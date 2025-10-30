@@ -2,6 +2,7 @@ import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
 import { QueueService } from './queue.service';
 import { EnterQueueDto } from './dto/enter-queue.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { NotFoundException } from '@nestjs/common';
 
 @Controller('queue')
 export class QueueController {
@@ -15,6 +16,29 @@ export class QueueController {
   @Get(':barberId')
   async getQueue(@Param('barberId') barberId: string) {
     return this.queueService.getQueue(parseInt(barberId));
+  }
+
+  @Get(':barberId/historico')
+  async getHistorico(@Param('barberId') barberId: string) {
+    const barber = await this.queueService['prisma'].barber.findUnique({
+      where: { id: parseInt(barberId) },
+    });
+    if (!barber) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
+
+    // Buscar últimos 20 atendimentos finalizados
+    const historico = await this.queueService['prisma'].queue.findMany({
+      where: {
+        barbeiro_id: parseInt(barberId),
+        status: { in: ['ATENDIDO', 'FALTOU', 'DESISTIU'] },
+      },
+      include: { cliente: true },
+      orderBy: { hora_saida: 'desc' },
+      take: 20,
+    });
+
+    return historico;
   }
 
   @Patch(':id/status')
