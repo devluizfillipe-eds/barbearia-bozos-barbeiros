@@ -16,7 +16,7 @@ interface Barber {
 export default function Home() {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedService, setSelectedService] = useState<number | null>(null);
+  const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [step, setStep] = useState<"service" | "barber">("service");
 
   useEffect(() => {
@@ -76,16 +76,40 @@ export default function Home() {
             priority
           />
           <p className="text-gray-300 font-regular">
-            Escolha seu barbeiro e entre na fila
+            {step === "service"
+              ? "Em que podemos te ajudar?"
+              : "Escolha seu barbeiro e entre na fila"}
           </p>
         </div>
       </div>
 
       {/* Título Principal */}
       <div className="max-w-3xl mx-auto mt-8 px-4">
-        <h1 className="text-3xl text-[#f2b63a] font-[700] text-center font-['Almendra'] tracking-wider">
-          {step === "service" ? "NOSSOS SERVIÇOS" : "BARBEIROS DISPONÍVEIS"}
-        </h1>
+        <div className="relative">
+          {step === "barber" && (
+            <button
+              onClick={() => setStep("service")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 text-[#f2b63a] hover:text-[#f2b63a]/80 transition-colors"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          )}
+          <h1 className="text-3xl text-[#f2b63a] font-[700] text-center font-['Almendra'] tracking-wider">
+            {step === "service" ? "NOSSOS SERVIÇOS" : "BARBEIROS DISPONÍVEIS"}
+          </h1>
+        </div>
       </div>
 
       {/* Conteúdo Principal */}
@@ -93,12 +117,21 @@ export default function Home() {
         {step === "service" ? (
           <div className="bg-[#4b4950] rounded-2xl p-6 shadow-lg">
             <ServiceSelector
-              selectedService={selectedService}
-              onServiceSelect={(serviceId) => {
-                setSelectedService(serviceId);
-                setStep("barber");
-              }}
+              selectedServices={selectedServices}
+              onServiceSelect={setSelectedServices}
             />
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => selectedServices.length > 0 && setStep("barber")}
+                className={`px-6 py-3 rounded-lg font-bold transition-all ${
+                  selectedServices.length > 0
+                    ? "bg-[#f2b63a] text-[#2e2d37] hover:brightness-110"
+                    : "bg-gray-500 text-gray-300 cursor-not-allowed"
+                }`}
+              >
+                Próximo
+              </button>
+            </div>
           </div>
         ) : barbers.length === 0 ? (
           <div className="text-center py-12">
@@ -171,6 +204,12 @@ export default function Home() {
             className="text-gray-300 hover:text-white transition-colors"
           >
             Sou Barbeiro
+          </button>
+          <button
+            onClick={() => (window.location.href = "/admin")}
+            className="text-gray-300 hover:text-white transition-colors"
+          >
+            Sou Admin
           </button>
         </div>
       </div>

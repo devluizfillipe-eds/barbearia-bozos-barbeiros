@@ -1,0 +1,91 @@
+{
+  "auth": {
+    "login": {
+      "admin": {
+        "access_token": "fake-token-admin",
+        "user": {
+          "id": 1,
+          "nome": "Administrador",
+          "roles": ["admin", "barber"],
+          "primaryRole": "admin",
+          "barberId": 1
+        }
+      },
+      "barbeiro": {
+        "access_token": "fake-token-barber",
+        "user": {
+          "id": 2,
+          "nome": "Barbeiro Teste",
+          "roles": ["barber"],
+          "primaryRole": "barber",
+          "barberId": 2
+        }
+      }
+    }
+  },
+  "barbers": [
+    {
+      "id": 1,
+      "nome": "Barbeiro Teste",
+      "login": "barbeiro",
+      "ativo": true,
+      "disponivel": true,
+      "data_criacao": "2025-10-31T00:00:00.000Z"
+    }
+  ],
+  "services": [
+    {
+      "id": 1,
+      "nome": "Corte",
+      "preco": 30,
+      "tempo_estimado": 25,
+      "ativo": true
+    },
+    {
+      "id": 2,
+      "nome": "Barba",
+      "preco": 30,
+      "tempo_estimado": 15,
+      "ativo": true
+    },
+    {
+      "id": 3,
+      "nome": "Sobrancelha",
+      "preco": 10,
+      "tempo_estimado": 10,
+      "ativo": true
+    },
+    {
+      "id": 4,
+      "nome": "Pézinho",
+      "preco": 10,
+      "tempo_estimado": 5,
+      "ativo": true
+    },
+    {
+      "id": 5,
+      "nome": "Tintura",
+      "preco": 20,
+      "tempo_estimado": 30,
+      "ativo": true
+    }
+  ],
+  "queue": [
+    {
+      "id": 1,
+      "cliente_id": 1,
+      "barbeiro_id": 1,
+      "status": "AGUARDANDO",
+      "posicao": 1,
+      "hora_entrada": "2025-10-31T10:00:00.000Z",
+      "hora_saida": null,
+      "cliente": {
+        "id": 1,
+        "nome": "Cliente Teste",
+        "telefone": "99999999",
+        "data_criacao": "2025-10-31T00:00:00.000Z"
+      },
+      "servicos": [{ "id": 1, "name": "Corte", "price": 30, "duration": 25 }]
+    }
+  ]
+}

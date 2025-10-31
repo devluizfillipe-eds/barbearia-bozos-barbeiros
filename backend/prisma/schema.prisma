@@ -29,10 +29,13 @@ model Barber {
   ativo      Boolean  @default(true)
   disponivel   Boolean  @default(true) 
   data_criacao DateTime @default(now())
+  adminId    Int?    @unique
+  admin      Admin?   @relation(fields: [adminId], references: [id])
 
   queueEntries Queue[]
 
   @@map("barbers")
+  @@index([adminId])
 }
 
 model Admin {
@@ -41,6 +44,8 @@ model Admin {
   login      String   @unique
   senha_hash String
   data_criacao DateTime @default(now())
+  
+  barber     Barber?
 
   @@map("admins")
 }

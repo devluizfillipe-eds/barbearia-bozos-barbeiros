@@ -63,6 +63,25 @@ export class BarbersService {
     return barbers;
   }
 
+  async findByAdminId(adminId: number) {
+    const barbers = await this.prisma.barber.findMany({
+      where: {
+        adminId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+        nome: true,
+        login: true,
+        ativo: true,
+        disponivel: true,
+        data_criacao: true,
+      },
+    });
+
+    return barbers;
+  }
+
   async getDisponiveis() {
     const barbers = await this.prisma.barber.findMany({
       where: {
@@ -150,33 +169,45 @@ export class BarbersService {
   }
 
   async toggleDisponibilidade(id: number) {
-    const barber = await this.prisma.barber.findUnique({
+    const barbeiro = await this.prisma.barber.findUnique({
       where: { id },
     });
 
-    if (!barber) {
+    if (!barbeiro) {
       throw new NotFoundException('Barbeiro não encontrado');
     }
 
-    const updatedBarber = await this.prisma.barber.update({
+    return this.prisma.barber.update({
       where: { id },
-      data: { disponivel: !barber.disponivel },
-    });
-
-    // Log da ação
-    await this.prisma.log.create({
       data: {
-        acao: barber.disponivel
-          ? 'BARBEIRO_INDISPONIVEL'
-          : 'BARBEIRO_DISPONIVEL',
-        detalhes: `Barbeiro ${updatedBarber.nome} marcado como ${updatedBarber.disponivel ? 'disponível' : 'indisponível'}`,
-        usuario_id: id,
-        usuario_tipo: 'barbeiro',
+        disponivel: !barbeiro.disponivel,
       },
     });
+  }
 
-    const { senha_hash: _, ...result } = updatedBarber;
-    return result;
+  async associarAdmin(barberId: number, adminId: number) {
+    const barbeiro = await this.prisma.barber.findUnique({
+      where: { id: barberId },
+    });
+
+    if (!barbeiro) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
+
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Admin não encontrado');
+    }
+
+    return this.prisma.barber.update({
+      where: { id: barberId },
+      data: {
+        adminId: adminId,
+      },
+    });
   }
 
   async remove(id: number) {

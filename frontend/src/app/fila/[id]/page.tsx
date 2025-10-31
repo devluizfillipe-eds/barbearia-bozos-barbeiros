@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 interface Barber {
   id: number;
@@ -70,82 +71,107 @@ export default function EntrarFila() {
 
   if (!barber) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-xl">Carregando...</div>
+      <div className="min-h-screen bg-[#2e2d37] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#f2b63a] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-xl">Carregando...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-4 py-6">
-          <button
-            onClick={() => router.back()}
-            className="text-yellow-500 hover:text-yellow-400 mb-4"
-          >
-            ← Voltar
-          </button>
-          <h1 className="text-3xl font-bold text-yellow-500 text-center">
-            Entrar na Fila
-          </h1>
-          <p className="text-gray-400 text-center mt-2">
-            Barbeiro: {barber.nome}
-          </p>
-        </div>
-      </div>
-
-      {/* Formulário */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto">
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Seu Nome
-                </label>
-                <input
-                  type="text"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
-                  placeholder="Digite seu nome completo"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Telefone
-                </label>
-                <input
-                  type="tel"
-                  value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-
-              {message && (
-                <div className="text-red-400 text-sm text-center">
-                  {message}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-700 text-gray-900 font-bold py-3 px-6 rounded-lg transition-colors"
+    <div className="min-h-screen bg-[#2e2d37] text-white">
+      {/* Logo e título */}
+      <div className="w-full bg-[#26242d] py-8">
+        <div className="max-w-3xl mx-auto text-center">
+          <Image
+            src="/images/logo.jpg"
+            alt="BOZOS BARBEIROS"
+            width={128}
+            height={128}
+            className="mx-auto rounded-full mb-4"
+            priority
+          />
+          <div className="relative px-4">
+            <button
+              onClick={() => router.back()}
+              className="absolute left-0 top-1/2 -translate-y-1/2 text-[#f2b63a] hover:text-[#f2b63a]/80 transition-colors"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                {loading ? "Entrando na fila..." : "Entrar na Fila"}
-              </button>
-            </form>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <p className="text-gray-300 font-regular">
+              Barbeiro: {barber.nome}
+            </p>
           </div>
         </div>
       </div>
+
+      {/* Título Principal */}
+      <div className="max-w-3xl mx-auto mt-8 px-4">
+        <h1 className="text-3xl text-[#f2b63a] font-[700] text-center font-['Almendra'] tracking-wider">
+          ENTRAR NA FILA
+        </h1>
+      </div>
+
+      {/* Formulário */}
+      <main className="max-w-3xl mx-auto mt-8 px-4 space-y-4">
+        <div className="bg-[#4b4950] rounded-2xl p-6 shadow-lg max-w-md mx-auto">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Seu Nome
+              </label>
+              <input
+                type="text"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                required
+                className="w-full px-3 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#f2b63a]"
+                placeholder="Digite seu nome completo"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Telefone
+              </label>
+              <input
+                type="tel"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                required
+                className="w-full px-3 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#f2b63a]"
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+
+            {message && (
+              <div className="text-red-400 text-sm text-center">{message}</div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#f2b63a] hover:brightness-110 disabled:opacity-70 text-[#2e2d37] font-bold py-3 px-6 rounded-lg transition-all"
+            >
+              {loading ? "Entrando na fila..." : "Entrar na Fila"}
+            </button>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }
