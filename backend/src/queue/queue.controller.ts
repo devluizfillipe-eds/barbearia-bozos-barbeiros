@@ -14,7 +14,6 @@ import { NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('queue')
-@UseGuards(JwtAuthGuard)
 export class QueueController {
   constructor(private readonly queueService: QueueService) {}
 
@@ -23,11 +22,14 @@ export class QueueController {
     return this.queueService.enterQueue(enterQueueDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get(':barberId')
   async getQueue(@Param('barberId') barberId: string) {
     return this.queueService.getQueue(parseInt(barberId));
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':barberId/historico')
   async getHistorico(@Param('barberId') barberId: string) {
     const barber = await this.queueService['prisma'].barber.findUnique({
@@ -51,6 +53,7 @@ export class QueueController {
     return historico;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
@@ -64,6 +67,7 @@ export class QueueController {
     return this.queueService.getPosition(parseInt(id));
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':barberId/updates')
   async getQueueUpdates(@Param('barberId') barberId: string) {
     const queue = await this.queueService.getQueue(parseInt(barberId));

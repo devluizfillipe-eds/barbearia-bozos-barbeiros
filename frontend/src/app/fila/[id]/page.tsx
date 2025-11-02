@@ -53,17 +53,17 @@ export default function EntrarFila() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Erro ao entrar na fila");
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Erro ao entrar na fila");
+      }
 
       // Redirecionar para a página de posição
       router.push(`/posicao/${data.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro:", error);
-      setMessage("Erro ao entrar na fila. Tente novamente.");
+      setMessage(error.message || "Erro ao entrar na fila. Tente novamente.");
     } finally {
       setLoading(false);
     }

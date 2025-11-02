@@ -3,72 +3,132 @@
 import { useEffect, useState } from "react";
 
 interface Service {
-  id: number;
-  name: string;
-  price: number;
-  duration: number;
-  active: boolean;
+  id: string;
+  nome: string;
+  preco: number;
+  tempo_estimado: number;
+  ativo: boolean;
 }
 
 export default function ServicosAdmin() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [error, setError] = useState("");
   const [newService, setNewService] = useState({
     name: "",
     price: "",
     duration: "",
   });
+  const [editingService, setEditingService] = useState<Service | null>(null);
 
   useEffect(() => {
-    // Dados mockados enquanto o backend não está disponível
-    const mockServices = [
-      { id: 1, name: "Corte", price: 30, duration: 25, active: true },
-      { id: 2, name: "Barba", price: 30, duration: 15, active: true },
-      { id: 3, name: "Sobrancelha", price: 10, duration: 10, active: true },
-      { id: 4, name: "Pézinho", price: 10, duration: 5, active: true },
-      { id: 5, name: "Tintura", price: 20, duration: 30, active: true },
-      { id: 6, name: "Tintura Barba", price: 20, duration: 15, active: true },
-      { id: 7, name: "Textura", price: 50, duration: 40, active: true },
-      { id: 8, name: "Alisante", price: 40, duration: 35, active: true },
-      { id: 9, name: "Luzes", price: 60, duration: 60, active: true },
-      { id: 10, name: "Descolorir", price: 70, duration: 90, active: true },
-    ];
-    setServices(mockServices);
-    setLoading(false);
+    fetchServices();
   }, []);
 
-  const handleAddService = () => {
+  const fetchServices = async () => {
     try {
-      // Simular adição do serviço localmente
-      const newServiceObj = {
-        id: services.length + 1,
-        name: newService.name,
-        price: parseFloat(newService.price),
-        duration: parseInt(newService.duration),
-        active: true,
-      };
-      setServices([...services, newServiceObj]);
-      setNewService({ name: "", price: "", duration: "" });
-      setShowAddModal(false);
-    } catch (error) {
-      console.error("Erro:", error);
-      alert("Erro ao adicionar serviço");
+      const response = await fetch("http://localhost:3000/services", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Falha ao carregar serviços");
+
+      const data = await response.json();
+      setServices(data);
+    } catch (err) {
+      setError("Erro ao carregar lista de serviços");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleServiceStatus = (serviceId: number, active: boolean) => {
-    // Simular atualização do status
-    const updatedServices = services.map((s) =>
-      s.id === serviceId ? { ...s, active: active } : s
-    );
-    setServices(updatedServices);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      const response = await fetch("http://localhost:3000/services", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+        body: JSON.stringify({
+          nome: newService.name,
+          preco: parseFloat(newService.price),
+          tempo_estimado: parseInt(newService.duration),
+          ativo: true,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Falha ao adicionar serviço");
+
+      setNewService({ name: "", price: "", duration: "" });
+      fetchServices();
+    } catch (err) {
+      setError("Erro ao adicionar serviço");
+      console.error(err);
+    }
+  };
+
+  const toggleServiceStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`http://localhost:3000/services/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+        body: JSON.stringify({ ativo: !currentStatus }),
+      });
+
+      if (!response.ok) throw new Error("Falha ao atualizar status do serviço");
+
+      fetchServices();
+    } catch (err) {
+      setError("Erro ao atualizar status do serviço");
+      console.error(err);
+    }
+  };
+
+  const handleUpdateService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingService) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/services/${editingService.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
+          body: JSON.stringify({
+            nome: editingService.nome,
+            preco: editingService.preco,
+            tempo_estimado: editingService.tempo_estimado,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Falha ao atualizar serviço");
+
+      setEditingService(null);
+      fetchServices();
+    } catch (err) {
+      setError("Erro ao atualizar serviço");
+      console.error(err);
+    }
   };
 
   if (loading) {
     return (
       <div className="text-center py-12">
-        <div className="w-12 h-12 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <div className="w-16 h-16 border-4 border-[#f2b63a] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
         <div className="text-xl text-gray-400">Carregando...</div>
       </div>
     );
@@ -76,89 +136,134 @@ export default function ServicosAdmin() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-yellow-500">
-          Gestão de Serviços
-        </h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 px-4 py-2 rounded-lg font-semibold transition-colors"
+      {error && (
+        <div className="bg-red-900/20 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Adicionar Serviço */}
+      <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50">
+        <h2 className="text-xl font-semibold text-[#f2b63a] mb-4">
+          Adicionar Novo Serviço
+        </h2>
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 md:grid-cols-4 gap-4"
         >
-          Adicionar Serviço
-        </button>
+          <input
+            type="text"
+            value={newService.name}
+            onChange={(e) =>
+              setNewService({ ...newService, name: e.target.value })
+            }
+            placeholder="Nome do serviço"
+            className="md:col-span-2 px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+            required
+          />
+          <input
+            type="number"
+            value={newService.price}
+            onChange={(e) =>
+              setNewService({ ...newService, price: e.target.value })
+            }
+            placeholder="Preço (R$)"
+            step="0.01"
+            min="0"
+            className="px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+            required
+          />
+          <div className="flex gap-4">
+            <input
+              type="number"
+              value={newService.duration}
+              onChange={(e) =>
+                setNewService({ ...newService, duration: e.target.value })
+              }
+              placeholder="Duração (min)"
+              min="1"
+              className="flex-1 px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+              required
+            />
+            <button
+              type="submit"
+              className="px-6 py-2 bg-[#f2b63a] text-[#2e2d37] font-semibold rounded-lg hover:brightness-110 transition-all"
+            >
+              Adicionar
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Lista de Serviços */}
-      <div className="bg-gray-800 rounded-lg border border-gray-700">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b border-gray-700">
-                <th className="px-6 py-4 text-gray-400">Nome</th>
-                <th className="px-6 py-4 text-gray-400">Preço</th>
-                <th className="px-6 py-4 text-gray-400">Duração</th>
-                <th className="px-6 py-4 text-gray-400">Status</th>
-                <th className="px-6 py-4 text-gray-400">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {services.map((service) => (
-                <tr key={service.id}>
-                  <td className="px-6 py-4 text-white">{service.name}</td>
-                  <td className="px-6 py-4 text-white">
-                    R$ {service.price.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 text-white">
-                    {service.duration} min
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        service.active
-                          ? "bg-green-500/10 text-green-500"
-                          : "bg-red-500/10 text-red-500"
-                      }`}
-                    >
-                      {service.active ? "Ativo" : "Inativo"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() =>
-                        toggleServiceStatus(service.id, !service.active)
-                      }
-                      className={`px-3 py-1 rounded text-sm font-semibold ${
-                        service.active
-                          ? "bg-red-500 hover:bg-red-600"
-                          : "bg-green-500 hover:bg-green-600"
-                      }`}
-                    >
-                      {service.active ? "Desativar" : "Ativar"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50">
+        <h2 className="text-xl font-semibold text-[#f2b63a] mb-6">
+          Serviços Disponíveis
+        </h2>
+        <div className="space-y-4">
+          {services.map((service) => (
+            <div
+              key={service.id}
+              className="flex items-center justify-between p-4 bg-[#2e2d37] rounded-lg border border-gray-700/50"
+            >
+              <div className="flex-1">
+                <h3 className="font-medium text-white">{service.nome}</h3>
+                <div className="flex gap-4 mt-1 text-sm text-gray-400">
+                  <span>R$ {service.preco.toFixed(2)}</span>
+                  <span>{service.tempo_estimado} minutos</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    service.ativo
+                      ? "bg-green-900/20 text-green-400 border border-green-500/20"
+                      : "bg-red-900/20 text-red-400 border border-red-500/20"
+                  }`}
+                >
+                  {service.ativo ? "Ativo" : "Inativo"}
+                </span>
+                <button
+                  onClick={() => setEditingService(service)}
+                  className="px-4 py-2 bg-[#f2b63a] text-[#2e2d37] font-semibold rounded-lg hover:brightness-110 transition-colors"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => toggleServiceStatus(service.id, service.ativo)}
+                  className="px-4 py-2 bg-[#4b4950] text-white rounded-lg hover:bg-[#3d3b42] transition-colors"
+                >
+                  {service.ativo ? "Desativar" : "Ativar"}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Modal Adicionar Serviço */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4">Adicionar Serviço</h3>
-            <div className="space-y-4">
+      {/* Modal de Edição */}
+      {editingService && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-[#26242d] p-6 rounded-xl shadow-lg w-full max-w-md">
+            <h3 className="text-xl font-semibold text-[#f2b63a] mb-4">
+              Editar Serviço
+            </h3>
+            <form onSubmit={handleUpdateService} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Nome</label>
+                <label className="block text-sm text-gray-400 mb-1">
+                  Nome do serviço
+                </label>
                 <input
                   type="text"
-                  value={newService.name}
+                  value={editingService.nome}
                   onChange={(e) =>
-                    setNewService({ ...newService, name: e.target.value })
+                    setEditingService({
+                      ...editingService,
+                      nome: e.target.value,
+                    })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                  required
                 />
               </div>
               <div>
@@ -167,13 +272,17 @@ export default function ServicosAdmin() {
                 </label>
                 <input
                   type="number"
-                  value={newService.price}
+                  value={editingService.preco}
                   onChange={(e) =>
-                    setNewService({ ...newService, price: e.target.value })
+                    setEditingService({
+                      ...editingService,
+                      preco: parseFloat(e.target.value),
+                    })
                   }
                   step="0.01"
                   min="0"
-                  className="w-full px-3 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                  required
                 />
               </div>
               <div>
@@ -182,32 +291,34 @@ export default function ServicosAdmin() {
                 </label>
                 <input
                   type="number"
-                  value={newService.duration}
+                  value={editingService.tempo_estimado}
                   onChange={(e) =>
-                    setNewService({ ...newService, duration: e.target.value })
+                    setEditingService({
+                      ...editingService,
+                      tempo_estimado: parseInt(e.target.value),
+                    })
                   }
                   min="1"
-                  className="w-full px-3 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                  required
                 />
               </div>
-            </div>
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddService}
-                disabled={
-                  !newService.name || !newService.price || !newService.duration
-                }
-                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Adicionar
-              </button>
-            </div>
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingService(null)}
+                  className="flex-1 px-4 py-2 bg-[#4b4950] text-white rounded-lg hover:bg-[#3d3b42] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-[#f2b63a] text-[#2e2d37] font-semibold rounded-lg hover:brightness-110 transition-colors"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

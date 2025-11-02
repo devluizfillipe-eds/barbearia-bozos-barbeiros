@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 interface PositionData {
   id: number;
@@ -82,22 +83,25 @@ export default function MinhaPosicao() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-xl">Carregando sua posição...</div>
+      <div className="min-h-screen bg-[#2e2d37] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#f2b63a] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-xl">Carregando sua posição...</div>
+        </div>
       </div>
     );
   }
 
   if (error || !positionData) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#2e2d37] text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">
+          <div className="text-red-400 text-xl mb-4">
             {error || "Erro ao carregar dados"}
           </div>
           <button
             onClick={() => router.push("/")}
-            className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg"
+            className="bg-[#f2b63a] hover:brightness-110 text-[#2e2d37] font-bold py-2 px-6 rounded-lg transition-all"
           >
             Voltar para Home
           </button>
@@ -107,72 +111,128 @@ export default function MinhaPosicao() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-4 py-6">
-          <button
-            onClick={() => router.push("/")}
-            className="text-yellow-500 hover:text-yellow-400 mb-4"
-          >
-            ← Voltar para Home
-          </button>
-          <h1 className="text-3xl font-bold text-yellow-500 text-center">
-            Minha Posição
-          </h1>
+    <div className="min-h-screen bg-[#2e2d37] text-white">
+      {/* Logo e título */}
+      <div className="w-full bg-[#26242d] py-8">
+        <div className="max-w-3xl mx-auto text-center">
+          <Image
+            src="/images/logo.jpg"
+            alt="BOZOS BARBEIROS"
+            width={128}
+            height={128}
+            className="mx-auto rounded-full mb-4"
+            priority
+          />
+          <div className="relative px-4">
+            <button
+              onClick={() => router.push("/")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 text-[#f2b63a] hover:text-[#f2b63a]/80 transition-colors"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <h1 className="text-2xl font-bold text-[#f2b63a]">
+              Sua Posição na Fila
+            </h1>
+          </div>
         </div>
       </div>
 
       {/* Conteúdo */}
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto">
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <div className="max-w-3xl mx-auto">
+          {/* Card Principal */}
+          <div className="bg-[#4b4950] rounded-2xl p-8 shadow-lg">
             {/* Informações do Cliente */}
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-semibold text-white mb-2">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold text-[#f2b63a] mb-2">
                 Olá, {positionData.cliente.nome}!
               </h2>
-              <p className="text-gray-400">
+              <p className="text-gray-300">
                 Barbeiro: {positionData.barbeiro.nome}
               </p>
             </div>
 
-            {/* Posição na Fila */}
-            <div className="text-center mb-6">
-              <div className="text-6xl font-bold text-yellow-500 mb-2">
-                {positionData.posicao}º
+            {/* Grid de Informações */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {/* Posição */}
+              <div className="bg-[#2e2d37] rounded-xl p-6 text-center">
+                <div className="text-5xl font-bold text-[#f2b63a] mb-2">
+                  {positionData.posicao}º
+                </div>
+                <p className="text-gray-300">Sua Posição</p>
               </div>
-              <p className="text-gray-400">
-                {positionData.pessoas_na_frente === 0
-                  ? "Você é o próximo!"
-                  : `${positionData.pessoas_na_frente} pessoa(s) na sua frente`}
-              </p>
+
+              {/* Pessoas na Frente */}
+              <div className="bg-[#2e2d37] rounded-xl p-6 text-center">
+                <div className="text-5xl font-bold text-[#f2b63a] mb-2">
+                  {positionData.pessoas_na_frente}
+                </div>
+                <p className="text-gray-300">
+                  {positionData.pessoas_na_frente === 0
+                    ? "Você é o próximo!"
+                    : positionData.pessoas_na_frente === 1
+                      ? "Pessoa na frente"
+                      : "Pessoas na frente"}
+                </p>
+              </div>
+
+              {/* Status */}
+              <div className="bg-[#2e2d37] rounded-xl p-6 text-center">
+                <div
+                  className={`text-2xl font-bold mb-2 ${
+                    positionData.status === "AGUARDANDO"
+                      ? "text-[#f2b63a]"
+                      : positionData.status === "ATENDENDO"
+                        ? "text-green-400"
+                        : positionData.status === "ATENDIDO"
+                          ? "text-blue-400"
+                          : "text-red-400"
+                  }`}
+                >
+                  {getStatusText(positionData.status)}
+                </div>
+                <p className="text-gray-300">Status</p>
+              </div>
             </div>
 
-            {/* Status */}
-            <div className="text-center mb-6">
-              <div
-                className={`text-lg font-semibold ${getStatusColor(positionData.status)}`}
-              >
-                Status: {getStatusText(positionData.status)}
+            {/* Informações Adicionais */}
+            <div className="bg-[#2e2d37] rounded-xl p-6 mb-6">
+              <div className="text-center">
+                <p className="text-gray-300 mb-2">
+                  Horário de Entrada:
+                  <br />
+                  <span className="text-[#f2b63a]">
+                    {new Date(positionData.hora_entrada).toLocaleString(
+                      "pt-BR"
+                    )}
+                  </span>
+                </p>
               </div>
-              <p className="text-gray-400 text-sm mt-1">
-                Entrada:{" "}
-                {new Date(positionData.hora_entrada).toLocaleString("pt-BR")}
-              </p>
             </div>
 
             {/* Botão de Atualizar */}
             <button
               onClick={fetchPosition}
               disabled={loading}
-              className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              className="w-full bg-[#f2b63a] hover:brightness-110 disabled:opacity-50 text-[#2e2d37] font-bold py-3 px-6 rounded-lg transition-all"
             >
               {loading ? "Atualizando..." : "Atualizar Posição"}
             </button>
 
             {/* Informação de atualização automática */}
-            <p className="text-gray-500 text-xs text-center mt-4">
+            <p className="text-gray-400 text-xs text-center mt-4">
               Atualizando automaticamente a cada 30 segundos
             </p>
           </div>

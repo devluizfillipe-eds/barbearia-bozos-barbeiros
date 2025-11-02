@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 
-export default function LoginAdmin() {
-  const router = useRouter();
-  const { login: authLogin } = useAuth();
+export default function AdminLogin() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setLoading(true);
+    console.log("Dados do login:", {
+      login,
+      type: "admin",
+      url: "http://localhost:3000/auth/login",
+    });
 
     try {
       const response = await fetch("http://localhost:3000/auth/login", {
@@ -31,26 +34,48 @@ export default function LoginAdmin() {
         }),
       });
 
-      const data = await response.json();
-      console.log("Resposta do servidor:", data); // Adicionado para debug
-
-      if (!response.ok && response.status !== 201) {
-        console.error("Erro na resposta:", data);
-        throw new Error(data.message || data.error || "Credenciais inválidas");
+      // Verifica se a resposta é JSON antes de tentar fazer o parse
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Resposta não é JSON:", text);
+        throw new Error(
+          "Resposta inesperada do servidor. Verifique os logs do backend."
+        );
       }
 
-      if (!data.access_token || !data.user) {
-        throw new Error("Resposta do servidor inválida");
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+        console.log("Resposta do servidor:", {
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          data,
+        });
+      } catch (e) {
+        console.error("Resposta não é JSON:", text);
+        throw new Error("Resposta inválida do servidor");
       }
 
-      // Usar o contexto de autenticação para fazer login
-      authLogin(data.access_token, data.user);
-
-      // Redirecionar para a página de carregamento
-      router.push("/admin/loading");
-    } catch (error) {
-      console.error("Erro no login:", error);
-      setError("Login ou senha incorretos");
+      if (response.ok) {
+        console.log("Login bem-sucedido, token recebido:", data.access_token);
+        localStorage.setItem("adminToken", data.access_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        router.push("/admin/painel/fila");
+      } else {
+        console.error("Erro na resposta:", {
+          status: response.status,
+          statusText: response.statusText,
+          message: data.message || "Sem mensagem de erro",
+        });
+        setError(data.message || "Credenciais inválidas");
+      }
+    } catch (err) {
+      console.error("Erro durante o login:", err);
+      setError(
+        err instanceof Error ? err.message : "Erro ao tentar fazer login"
+      );
     } finally {
       setLoading(false);
     }
@@ -83,6 +108,12 @@ export default function LoginAdmin() {
       {/* Conteúdo Principal */}
       <main className="max-w-3xl mx-auto mt-8 px-4 space-y-4">
         <div className="bg-[#4b4950] rounded-2xl p-6 shadow-lg max-w-md mx-auto">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg mb-4 text-center text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -90,11 +121,11 @@ export default function LoginAdmin() {
               </label>
               <input
                 type="text"
+                id="login"
                 value={login}
                 onChange={(e) => setLogin(e.target.value)}
+                className="w-full p-3 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
                 required
-                className="w-full px-3 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#f2b63a]"
-                placeholder="Seu login administrativo"
               />
             </div>
 
@@ -104,24 +135,20 @@ export default function LoginAdmin() {
               </label>
               <input
                 type="password"
+                id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
                 required
-                className="w-full px-3 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#f2b63a]"
-                placeholder="Sua senha"
               />
             </div>
-
-            {error && (
-              <div className="text-red-400 text-sm text-center">{error}</div>
-            )}
 
             <button
               type="submit"
               disabled={loading}
               className="w-full bg-[#f2b63a] hover:brightness-110 disabled:opacity-70 text-[#2e2d37] font-bold py-3 px-6 rounded-lg transition-all"
             >
-              {loading ? "Entrando..." : "Entrar como Admin"}
+              {loading ? "Entrando..." : "Entrar"}
             </button>
           </form>
         </div>

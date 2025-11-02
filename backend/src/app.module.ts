@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { QueueModule } from './queue/queue.module';
 import { BarbersModule } from './barbers/barbers.module';
 import { ServicesModule } from './services/services.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ServicesModule } from './services/services.module';
     QueueModule,
     BarbersModule,
     ServicesModule,
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

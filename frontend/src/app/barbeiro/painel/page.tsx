@@ -2,31 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-
-interface Service {
-  id: number;
-  name: string;
-  price: number;
-  duration: number;
-}
-
-interface QueueEntry {
-  id: number;
-  cliente_id: number;
-  barbeiro_id: number;
-  status: string;
-  posicao: number;
-  hora_entrada: string;
-  hora_saida: string | null;
-  servicos: Service[];
-  cliente: {
-    id: number;
-    nome: string;
-    telefone: string;
-    data_criacao: string;
-  };
-}
+import {
+  Header,
+  Card,
+  Button,
+  Modal,
+  Input,
+  Select,
+  Tabs,
+  Filters,
+} from "@/components/ui";
+import { EntryCard, HistoryEntryCard } from "@/components";
+import { SERVICOS } from "@/constants/servicos";
+import { QueueEntry } from "@/types";
 
 interface Barber {
   id: number;
@@ -58,22 +46,38 @@ export default function PainelBarbeiro() {
     const user = localStorage.getItem("user");
 
     if (!token || !user) {
+      console.log("Token ou user não encontrado");
       router.push("/barbeiro");
       return;
     }
 
-    const userData = JSON.parse(user);
-    if (userData.type !== "barber") {
+    try {
+      const userData = JSON.parse(user);
+      console.log("User data:", userData);
+
+      if (userData.type !== "barber") {
+        console.log("Usuário não é barbeiro");
+        router.push("/barbeiro");
+        return;
+      }
+
+      const barberData = {
+        id: userData.id,
+        nome: userData.nome,
+        disponivel: true
+      };
+
+      console.log("Barber data:", barberData);
+      setBarber(barberData);
+      fetchData(userData.id);
+
+      // Atualizar a cada 15 segundos
+      const interval = setInterval(() => fetchData(userData.id), 15000);
+      return () => clearInterval(interval);
+    } catch (error) {
+      console.error("Erro ao processar dados do usuário:", error);
       router.push("/barbeiro");
-      return;
     }
-
-    setBarber(userData);
-    fetchData(userData.id);
-
-    // Atualizar a cada 15 segundos
-    const interval = setInterval(() => fetchData(userData.id), 15000);
-    return () => clearInterval(interval);
   }, [router]);
 
   const fetchData = async (barberId: number) => {
@@ -282,69 +286,49 @@ export default function PainelBarbeiro() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-[#2e2d37] text-white">
-      {/* Logo e título */}
-      <div className="w-full bg-[#26242d] py-8">
-        <div className="max-w-3xl mx-auto text-center">
-          <Image
-            src="/images/logo.jpg"
-            alt="BOZOS BARBEIROS"
-            width={128}
-            height={128}
-            className="mx-auto rounded-full mb-4"
-            priority
-          />
-          <div className="flex justify-between items-center px-4">
-            <div>
-              <h1 className="text-2xl font-bold text-[#f2b63a]">
-                Painel do Barbeiro
-              </h1>
-              <p className="text-gray-300">Bem-vindo, {barber.nome}</p>
-            </div>
+    <div className="min-h-screen bg-barbearia-background text-white">
+      <Header
+        title="Painel do Barbeiro"
+        subtitle={`Bem-vindo, ${barber.nome}`}
+      />
 
-            <div className="flex items-center space-x-4">
-              {/* Status de Disponibilidade */}
-              <div className="flex items-center space-x-4">
-                <div
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all transform ${
-                    barber.disponivel
-                      ? "bg-green-500/10 text-green-500 border-2 border-green-500"
-                      : "bg-red-500/10 text-red-500 border-2 border-red-500"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        barber.disponivel
-                          ? "bg-green-500 animate-pulse"
-                          : "bg-red-500"
-                      }`}
-                    ></div>
-                    <span>{barber.disponivel ? "Online" : "Offline"}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={toggleDisponibilidade}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    barber.disponivel
-                      ? "bg-red-500 hover:bg-red-600 text-white hover:scale-105"
-                      : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                  }`}
-                >
-                  {barber.disponivel ? "Ficar Offline" : "Ficar Online"}
-                </button>
-              </div>
-
-              {/* Botão Logout */}
-              <button
-                onClick={handleLogout}
-                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors"
-              >
-                Sair
-              </button>
+      <div className="flex justify-end items-center space-x-4 px-4 py-4 bg-barbearia-header shadow-md">
+        {/* Status de Disponibilidade */}
+        <div className="flex items-center space-x-4">
+          <div
+            className={`px-4 py-2 rounded-lg font-semibold transition-all transform ${
+              barber.disponivel
+                ? "bg-green-500/10 text-green-500 border-2 border-green-500"
+                : "bg-red-500/10 text-red-500 border-2 border-red-500"
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  barber.disponivel
+                    ? "bg-green-500 animate-pulse"
+                    : "bg-red-500"
+                }`}
+              ></div>
+              <span>{barber.disponivel ? "Online" : "Offline"}</span>
             </div>
           </div>
+          <Button
+            onClick={toggleDisponibilidade}
+            className={
+              barber.disponivel
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-green-500 hover:bg-green-600"
+            }
+          >
+            {barber.disponivel ? "Ficar Offline" : "Ficar Online"}
+          </Button>
         </div>
+
+        {/* Botão Logout */}
+        <Button variant="secondary" onClick={handleLogout}>
+          Sair
+        </Button>
       </div>
 
       {/* Conteúdo */}
@@ -352,228 +336,143 @@ export default function PainelBarbeiro() {
         <div className="max-w-4xl mx-auto">
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-[#4b4950] rounded-2xl p-4 text-center shadow-lg">
-              <div className="text-2xl font-bold text-[#f2b63a]">
+            <Card title="Na Fila" className="text-center">
+              <div className="text-2xl font-bold text-barbearia-accent">
                 {filaAtual.length}
               </div>
-              <div className="text-gray-300">Na Fila</div>
-            </div>
-            <div className="bg-[#4b4950] rounded-2xl p-4 text-center shadow-lg">
+            </Card>
+            <Card title="Atendendo" className="text-center">
               <div className="text-2xl font-bold text-green-400">
                 {totalAtendendo}
               </div>
-              <div className="text-gray-300">Atendendo</div>
-            </div>
-            <div className="bg-[#4b4950] rounded-2xl p-4 text-center shadow-lg">
+            </Card>
+            <Card title="Atendidos" className="text-center">
               <div className="text-2xl font-bold text-blue-400">
                 {totalAtendidos}
               </div>
-              <div className="text-gray-300">Atendidos</div>
-            </div>
-            <div className="bg-[#4b4950] rounded-2xl p-4 text-center shadow-lg">
+            </Card>
+            <Card title="Faltas" className="text-center">
               <div className="text-2xl font-bold text-red-400">
                 {totalFaltas}
               </div>
-              <div className="text-gray-300">Faltas</div>
-            </div>
+            </Card>
           </div>{" "}
           {/* Modal de Adicionar Cliente */}
-          {showAddClientModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-[#4b4950] p-6 rounded-2xl shadow-xl max-w-md w-full mx-4">
-                <h3 className="text-xl font-semibold mb-4 text-[#f2b63a]">
-                  Adicionar Cliente
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">
-                      Nome
-                    </label>
-                    <input
-                      type="text"
-                      value={newClient.nome}
-                      onChange={(e) =>
-                        setNewClient({ ...newClient, nome: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-[#2e2d37] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f2b63a]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">
-                      Telefone
-                    </label>
-                    <input
-                      type="tel"
-                      value={newClient.telefone}
-                      onChange={(e) =>
-                        setNewClient({ ...newClient, telefone: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-[#2e2d37] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f2b63a]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">
-                      Serviços
-                    </label>
-                    <div className="space-y-2">
-                      {[
-                        { id: 1, name: "Corte" },
-                        { id: 2, name: "Barba" },
-                        { id: 3, name: "Sobrancelha" },
-                        { id: 4, name: "Textura" },
-                        { id: 5, name: "Pigmentação" },
-                      ].map((servico) => (
-                        <label key={servico.id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={newClient.servicos.includes(servico.id)}
-                            onChange={(e) => {
-                              const updatedServices = e.target.checked
-                                ? [...newClient.servicos, servico.id]
-                                : newClient.servicos.filter(
-                                    (id) => id !== servico.id
-                                  );
-                              setNewClient({
-                                ...newClient,
-                                servicos: updatedServices,
-                              });
-                            }}
-                            className="mr-2 accent-[#f2b63a]"
-                          />
-                          <span className="text-gray-300">{servico.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    onClick={() => setShowAddClientModal(false)}
-                    className="px-4 py-2 bg-[#2e2d37] hover:bg-opacity-80 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleAddClient}
-                    disabled={
-                      !newClient.nome ||
-                      !newClient.telefone ||
-                      newClient.servicos.length === 0
-                    }
-                    className="px-4 py-2 bg-[#f2b63a] hover:brightness-110 text-[#2e2d37] rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Adicionar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          {/* Modal de Confirmação */}
-          {showConfirmDialog && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-[#4b4950] p-6 rounded-2xl shadow-xl max-w-md w-full mx-4">
-                <h3 className="text-xl font-semibold mb-4 text-[#f2b63a]">
-                  Confirmar Disponibilidade
-                </h3>
-                <p className="text-gray-300 mb-6">
-                  Você está prestes a ficar disponível para atendimento.
-                  Confirma que está pronto para receber clientes?
-                </p>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => setShowConfirmDialog(false)}
-                    className="px-4 py-2 bg-[#2e2d37] hover:bg-opacity-80 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={updateDisponibilidade}
-                    className="px-4 py-2 bg-[#f2b63a] hover:brightness-110 text-[#2e2d37] rounded-lg transition-all"
-                  >
-                    Confirmar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          {/* Filtros */}
-          <div className="flex flex-wrap gap-4 mb-6">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm text-gray-400 mb-1">Data</label>
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm text-gray-400 mb-1">
-                Serviço
-              </label>
-              <select
-                value={filterService || ""}
+          <Modal
+            isOpen={showAddClientModal}
+            onClose={() => setShowAddClientModal(false)}
+            title="Adicionar Cliente"
+          >
+            <div className="space-y-4">
+              <Input
+                label="Nome"
+                type="text"
+                value={newClient.nome}
                 onChange={(e) =>
-                  setFilterService(
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  setNewClient({ ...newClient, nome: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
-              >
-                <option value="">Todos os serviços</option>
-                <option value="1">Corte</option>
-                <option value="2">Barba</option>
-                <option value="3">Sobrancelha</option>
-                <option value="4">Textura</option>
-                <option value="5">Pigmentação</option>
-              </select>
+              />
+              <Input
+                label="Telefone"
+                type="tel"
+                value={newClient.telefone}
+                onChange={(e) =>
+                  setNewClient({ ...newClient, telefone: e.target.value })
+                }
+              />
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Serviços
+                </label>
+                <div className="space-y-2">
+                  {SERVICOS.map((servico) => (
+                    <label key={servico.id} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={newClient.servicos.includes(servico.id)}
+                        onChange={(e) => {
+                          const updatedServices = e.target.checked
+                            ? [...newClient.servicos, servico.id]
+                            : newClient.servicos.filter(
+                                (id) => id !== servico.id
+                              );
+                          setNewClient({
+                            ...newClient,
+                            servicos: updatedServices,
+                          });
+                        }}
+                        className="mr-2 accent-barbearia-accent"
+                      />
+                      <span className="text-gray-300">{servico.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
-            {(filterDate || filterService) && (
-              <button
-                onClick={() => {
-                  setFilterDate("");
-                  setFilterService(null);
-                }}
-                className="self-end px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm"
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                variant="secondary"
+                onClick={() => setShowAddClientModal(false)}
               >
-                Limpar Filtros
-              </button>
-            )}
-          </div>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleAddClient}
+                disabled={
+                  !newClient.nome ||
+                  !newClient.telefone ||
+                  newClient.servicos.length === 0
+                }
+              >
+                Adicionar
+              </Button>
+            </div>
+          </Modal>
+          {/* Modal de Confirmação */}
+          <Modal
+            isOpen={showConfirmDialog}
+            onClose={() => setShowConfirmDialog(false)}
+            title="Confirmar Disponibilidade"
+          >
+            <p className="text-gray-300 mb-6">
+              Você está prestes a ficar disponível para atendimento. Confirma
+              que está pronto para receber clientes?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowConfirmDialog(false)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={updateDisponibilidade}>Confirmar</Button>
+            </div>
+          </Modal>
+          {/* Filtros */}
+          <Filters
+            filterDate={filterDate}
+            onDateChange={setFilterDate}
+            filterService={filterService}
+            onServiceChange={setFilterService}
+            onClearFilters={() => {
+              setFilterDate("");
+              setFilterService(null);
+            }}
+          />
           {/* Tabs */}
-          <div className="flex border-b border-gray-600 mb-6">
-            <button
-              onClick={() => setActiveTab("fila")}
-              className={`px-4 py-2 font-semibold ${
-                activeTab === "fila"
-                  ? "text-[#f2b63a] border-b-2 border-[#f2b63a]"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Fila Atual ({filaAtual.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("historico")}
-              className={`px-4 py-2 font-semibold ${
-                activeTab === "historico"
-                  ? "text-[#f2b63a] border-b-2 border-[#f2b63a]"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Histórico ({historico.length})
-            </button>
-          </div>
+          <Tabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            filaLength={filaAtual.length}
+            historicoLength={historico.length}
+          />
           {/* Conteúdo das Tabs */}
           {activeTab === "fila" && (
-            <div className="bg-[#4b4950] rounded-2xl p-6 shadow-lg">
-              <h2 className="text-xl font-semibold mb-4 text-[#f2b63a]">
-                Fila Atual
-              </h2>
-
+            <Card title="Fila Atual">
               {/* Botão Adicionar Cliente */}
-              <button
+              <Button
                 onClick={() => setShowAddClientModal(true)}
-                className="mb-4 px-4 py-2 bg-[#f2b63a] hover:brightness-110 text-[#2e2d37] rounded-lg transition-all font-semibold flex items-center"
+                className="mb-4 flex items-center"
               >
                 <svg
                   className="w-5 h-5 mr-2"
@@ -589,7 +488,7 @@ export default function PainelBarbeiro() {
                   />
                 </svg>
                 Adicionar Cliente
-              </button>
+              </Button>
 
               {filterEntries(filaAtual).length === 0 ? (
                 <div className="text-center text-gray-400 py-8">
@@ -598,112 +497,19 @@ export default function PainelBarbeiro() {
               ) : (
                 <div className="space-y-3">
                   {filterEntries(filaAtual).map((entry) => (
-                    <div
+                    <EntryCard
                       key={entry.id}
-                      className="bg-gray-700 rounded-lg p-4 border border-gray-600"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-semibold text-white">
-                                {entry.cliente.nome}
-                              </h3>
-                              <p className="text-gray-400 text-sm">
-                                Telefone: {entry.cliente.telefone}
-                              </p>
-                              <p className="text-gray-400 text-sm">
-                                Posição: {entry.posicao} • Entrou:{" "}
-                                {new Date(
-                                  entry.hora_entrada
-                                ).toLocaleTimeString("pt-BR")}
-                              </p>
-                              <div className="mt-2">
-                                <div className="flex flex-wrap gap-2 mb-1">
-                                  {entry.servicos?.map((servico) => (
-                                    <span
-                                      key={servico.id}
-                                      className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full"
-                                    >
-                                      {servico.name} - {servico.duration}min
-                                    </span>
-                                  )) || (
-                                    <span className="text-gray-400 text-sm italic">
-                                      Serviços não especificados
-                                    </span>
-                                  )}
-                                </div>
-                                {entry.servicos &&
-                                  entry.servicos.length > 0 && (
-                                    <p className="text-sm text-yellow-500">
-                                      Tempo total estimado:{" "}
-                                      {entry.servicos.reduce(
-                                        (acc, curr) => acc + curr.duration,
-                                        0
-                                      )}
-                                      min
-                                    </p>
-                                  )}
-                              </div>
-                            </div>
-                            <span
-                              className={`text-xs font-semibold px-2 py-1 rounded ${
-                                entry.status === "ATENDENDO"
-                                  ? "bg-green-500 text-white"
-                                  : "bg-yellow-500 text-gray-900"
-                              }`}
-                            >
-                              {entry.status === "ATENDENDO"
-                                ? "ATENDENDO"
-                                : "AGUARDANDO"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex space-x-2">
-                          {entry.status === "AGUARDANDO" && (
-                            <button
-                              onClick={() =>
-                                updateStatus(entry.id, "ATENDENDO")
-                              }
-                              disabled={updating}
-                              className="bg-green-500 hover:bg-green-600 disabled:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                            >
-                              Atender
-                            </button>
-                          )}
-
-                          {entry.status === "ATENDENDO" && (
-                            <button
-                              onClick={() => updateStatus(entry.id, "ATENDIDO")}
-                              disabled={updating}
-                              className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                            >
-                              Finalizar
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => updateStatus(entry.id, "FALTOU")}
-                            disabled={updating}
-                            className="bg-red-500 hover:bg-red-600 disabled:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                          >
-                            Não Compareceu
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                      entry={entry}
+                      onUpdateStatus={updateStatus}
+                      updating={updating}
+                    />
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
           )}
           {activeTab === "historico" && (
-            <div className="bg-[#4b4950] rounded-2xl p-6 shadow-lg">
-              <h2 className="text-xl font-semibold mb-4 text-[#f2b63a]">
-                Histórico Recente
-              </h2>
-
+            <Card title="Histórico Recente">
               {filterEntries(historico).length === 0 ? (
                 <div className="text-center text-gray-300 py-8">
                   Nenhum atendimento no histórico
@@ -711,80 +517,11 @@ export default function PainelBarbeiro() {
               ) : (
                 <div className="space-y-3">
                   {filterEntries(historico).map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="bg-gray-700 rounded-lg p-4 border border-gray-600"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div>
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <h3 className="font-semibold text-white">
-                                  {entry.cliente.nome}
-                                </h3>
-                                <p className="text-gray-400 text-sm">
-                                  Telefone: {entry.cliente.telefone}
-                                </p>
-                                <p className="text-gray-400 text-sm">
-                                  Entrada:{" "}
-                                  {new Date(entry.hora_entrada).toLocaleString(
-                                    "pt-BR"
-                                  )}
-                                  {entry.hora_saida &&
-                                    ` • Saída: ${new Date(entry.hora_saida).toLocaleString("pt-BR")}`}
-                                </p>
-                              </div>
-                              <span
-                                className={`text-xs font-semibold px-2 py-1 rounded ${
-                                  entry.status === "ATENDIDO"
-                                    ? "bg-blue-500 text-white"
-                                    : entry.status === "FALTOU"
-                                      ? "bg-red-500 text-white"
-                                      : "bg-orange-500 text-white"
-                                }`}
-                              >
-                                {entry.status === "ATENDIDO"
-                                  ? "ATENDIDO"
-                                  : entry.status === "FALTOU"
-                                    ? "NÃO COMPARECEU"
-                                    : "DESISTIU"}
-                              </span>
-                            </div>
-                            <div className="mt-2">
-                              <div className="flex flex-wrap gap-2 mb-1">
-                                {entry.servicos?.map((servico) => (
-                                  <span
-                                    key={servico.id}
-                                    className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full"
-                                  >
-                                    {servico.name} - {servico.duration}min
-                                  </span>
-                                )) || (
-                                  <span className="text-gray-400 text-sm italic">
-                                    Serviços não especificados
-                                  </span>
-                                )}
-                              </div>
-                              {entry.servicos && entry.servicos.length > 0 && (
-                                <p className="text-sm text-yellow-500">
-                                  Tempo total estimado:{" "}
-                                  {entry.servicos.reduce(
-                                    (acc, curr) => acc + curr.duration,
-                                    0
-                                  )}
-                                  min
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <HistoryEntryCard key={entry.id} entry={entry} />
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
           )}
           {/* Informação de atualização */}
           <p className="text-gray-500 text-xs text-center mt-4">

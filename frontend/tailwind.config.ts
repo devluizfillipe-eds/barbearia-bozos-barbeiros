@@ -9,11 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0f0f0f",
-        foreground: "#e5e5e5",
-        primary: "#1a1a1a",
-        secondary: "#2a2a2a",
-        accent: "#d4af37",
+        barbearia: {
+          background: "#2e2d37",
+          header: "#26242d",
+          card: "#4b4950",
+          accent: "#f2b63a",
+        },
       },
     },
   },

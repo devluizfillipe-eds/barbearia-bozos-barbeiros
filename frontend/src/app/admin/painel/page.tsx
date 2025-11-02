@@ -1,149 +1,167 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-export default function AdminPainel() {
+interface Barber {
+  id: string;
+  nome: string;
+  disponivel: boolean;
+}
+
+export default function AdminPanel() {
   const router = useRouter();
+  const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
-  const [barbeiros, setBarbeiros] = useState<any[]>([]);
-  const [estatisticas, setEstatisticas] = useState({
-    total: 0,
-    online: 0,
-    atendimentos: 0,
-  });
-  const [showAddBarberModal, setShowAddBarberModal] = useState(false);
-  const [newBarber, setNewBarber] = useState({
-    nome: "",
-    email: "",
-    senha: "",
-  });
+  const [error, setError] = useState("");
+  const [newBarberName, setNewBarberName] = useState("");
+  const [newBarberLogin, setNewBarberLogin] = useState("");
+  const [newBarberPassword, setNewBarberPassword] = useState("");
+  const [addingBarber, setAddingBarber] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/admin");
-  };
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      router.push("/admin");
+      return;
+    }
 
-  const fetchBarbeiros = async () => {
+    fetchBarbers();
+  }, [router]);
+
+  const fetchBarbers = async () => {
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:3000/barbers", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },
       });
 
       if (!response.ok) {
-        throw new Error("Erro ao carregar barbeiros");
+        if (response.status === 401) {
+          router.push("/admin");
+          return;
+        }
+        throw new Error("Erro ao buscar barbeiros");
       }
 
       const data = await response.json();
-      setBarbeiros(data);
-
-      // Atualizar estatísticas
-      setEstatisticas({
-        total: data.length,
-        online: data.filter((b: any) => b.disponivel).length,
-        atendimentos: data.reduce(
-          (acc: number, b: any) => acc + (b.atendimentos || 0),
-          0
-        ),
-      });
-    } catch (error) {
-      console.error("Erro:", error);
+      setBarbers(data);
+    } catch (err) {
+      setError("Erro ao carregar lista de barbeiros");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddBarber = async () => {
+  const addBarber = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddingBarber(true);
+    setError("");
+
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:3000/barbers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },
-        body: JSON.stringify(newBarber),
+        body: JSON.stringify({
+          nome: newBarberName,
+          login: newBarberLogin,
+          senha: newBarberPassword,
+          disponivel: true,
+        }),
       });
 
       if (!response.ok) {
         throw new Error("Erro ao adicionar barbeiro");
       }
 
-      // Limpar formulário e fechar modal
-      setNewBarber({
-        nome: "",
-        email: "",
-        senha: "",
-      });
-      setShowAddBarberModal(false);
-
-      // Recarregar lista de barbeiros
-      fetchBarbeiros();
-    } catch (error) {
-      console.error("Erro:", error);
-      alert("Erro ao adicionar barbeiro");
+      setNewBarberName("");
+      setNewBarberLogin("");
+      setNewBarberPassword("");
+      fetchBarbers();
+    } catch (err) {
+      setError("Erro ao adicionar barbeiro");
+    } finally {
+      setAddingBarber(false);
     }
   };
 
-  useEffect(() => {
-    // Verificar se o usuário está logado como admin
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
-
-    if (!token || !user) {
-      router.push("/admin");
-      return;
-    }
-
+  const toggleBarberStatus = async (
+    barberId: string,
+    currentStatus: boolean
+  ) => {
     try {
-      const userData = JSON.parse(user);
-      if (!userData.roles?.includes("admin")) {
-        router.push("/admin");
-        return;
+      const response = await fetch(
+        `http://localhost:3000/barbers/${barberId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
+          body: JSON.stringify({
+            disponivel: !currentStatus,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar status do barbeiro");
       }
 
-      // Carregar lista de barbeiros
-      fetchBarbeiros();
-
-      // Atualizar a cada 30 segundos
-      const interval = setInterval(fetchBarbeiros, 30000);
-      return () => clearInterval(interval);
-    } catch (error) {
-      console.error("Erro ao validar usuário:", error);
-      router.push("/admin");
+      fetchBarbers();
+    } catch (err) {
+      setError("Erro ao atualizar status do barbeiro");
     }
-  }, [router]);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    router.push("/admin");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#2e2d37] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#f2b63a] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl text-white">Carregando...</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#2e2d37] text-white">
-      {/* Logo e título */}
+      {/* Header */}
       <div className="w-full bg-[#26242d] py-8">
-        <div className="max-w-3xl mx-auto text-center">
-          <Image
-            src="/images/logo.jpg"
-            alt="BOZOS BARBEIROS"
-            width={128}
-            height={128}
-            className="mx-auto rounded-full mb-4"
-            priority
-          />
-          <div className="flex justify-between items-center px-4">
-            <div>
-              <h1 className="text-2xl font-bold text-[#f2b63a]">
-                Painel Administrativo
-              </h1>
-              <p className="text-gray-300">Bem-vindo, Administrador</p>
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <Image
+                src="/images/logo.jpg"
+                alt="BOZOS BARBEIROS"
+                width={64}
+                height={64}
+                className="rounded-full"
+                priority
+              />
+              <div>
+                <h1 className="text-2xl text-[#f2b63a] font-[700] font-['Almendra'] tracking-wider">
+                  PAINEL ADMINISTRATIVO
+                </h1>
+                <p className="text-gray-400 text-sm">
+                  Gerenciamento de Barbeiros
+                </p>
+              </div>
             </div>
-
-            {/* Botão Logout */}
             <button
               onClick={handleLogout}
-              className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors"
+              className="px-6 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors"
             >
               Sair
             </button>
@@ -151,184 +169,107 @@ export default function AdminPainel() {
         </div>
       </div>
 
-      {/* Conteúdo */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Estatísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-[#4b4950] rounded-2xl p-4 text-center shadow-lg">
-              <div className="text-2xl font-bold text-[#f2b63a]">
-                {estatisticas.total}
-              </div>
-              <div className="text-gray-300">Total de Barbeiros</div>
-            </div>
-            <div className="bg-[#4b4950] rounded-2xl p-4 text-center shadow-lg">
-              <div className="text-2xl font-bold text-green-400">
-                {estatisticas.online}
-              </div>
-              <div className="text-gray-300">Barbeiros Online</div>
-            </div>
-            <div className="bg-[#4b4950] rounded-2xl p-4 text-center shadow-lg">
-              <div className="text-2xl font-bold text-blue-400">
-                {estatisticas.atendimentos}
-              </div>
-              <div className="text-gray-300">Total de Atendimentos</div>
-            </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        {error && (
+          <div className="bg-red-900/20 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg">
+            {error}
           </div>
+        )}
 
-          {/* Lista de Barbeiros */}
-          <div className="bg-[#4b4950] rounded-2xl p-6 shadow-lg">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-[#f2b63a]">
-                Lista de Barbeiros
-              </h2>
-              <button
-                onClick={() => {}}
-                className="px-4 py-2 bg-[#f2b63a] hover:brightness-110 text-[#2e2d37] rounded-lg transition-all font-semibold flex items-center"
-              >
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Adicionar Barbeiro
-              </button>
+        {/* Adicionar Barbeiro */}
+        <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50">
+          <h2 className="text-xl font-semibold text-[#f2b63a] mb-4">
+            Adicionar Novo Barbeiro
+          </h2>
+          <form onSubmit={addBarber} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Nome do Barbeiro
+              </label>
+              <input
+                type="text"
+                value={newBarberName}
+                onChange={(e) => setNewBarberName(e.target.value)}
+                placeholder="Nome do barbeiro"
+                className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                required
+              />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Login
+              </label>
+              <input
+                type="text"
+                value={newBarberLogin}
+                onChange={(e) => setNewBarberLogin(e.target.value)}
+                placeholder="Login para acesso"
+                className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Senha
+              </label>
+              <input
+                type="password"
+                value={newBarberPassword}
+                onChange={(e) => setNewBarberPassword(e.target.value)}
+                placeholder="Senha para acesso"
+                className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={addingBarber}
+              className="w-full px-6 py-2 bg-[#f2b63a] text-[#2e2d37] font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
+            >
+              {addingBarber ? "Adicionando..." : "Adicionar Barbeiro"}
+            </button>
+          </form>
+        </div>
 
-            {loading ? (
-              <div className="text-center text-gray-400 py-8">
-                <div className="w-12 h-12 border-4 border-[#f2b63a] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p>Carregando lista de barbeiros...</p>
-              </div>
-            ) : barbeiros.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                Nenhum barbeiro cadastrado
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {barbeiros.map((barbeiro) => (
-                  <div
-                    key={barbeiro.id}
-                    className="bg-gray-700 rounded-lg p-4 border border-gray-600"
+        {/* Lista de Barbeiros */}
+        <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50">
+          <h2 className="text-xl font-semibold text-[#f2b63a] mb-6">
+            Barbeiros Cadastrados
+          </h2>
+          <div className="space-y-4">
+            {barbers.map((barber) => (
+              <div
+                key={barber.id}
+                className="flex items-center justify-between p-4 bg-[#2e2d37] rounded-lg border border-gray-700/50"
+              >
+                <span className="font-medium text-white">{barber.nome}</span>
+                <div className="flex items-center gap-4">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      barber.disponivel
+                        ? "bg-green-900/20 text-green-400 border border-green-500/20"
+                        : "bg-red-900/20 text-red-400 border border-red-500/20"
+                    }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold text-white">
-                          {barbeiro.nome}
-                        </h3>
-                        <p className="text-gray-400 text-sm">
-                          Email: {barbeiro.email}
-                        </p>
-                        <p className="text-gray-400 text-sm">
-                          Status: {barbeiro.disponivel ? "Online" : "Offline"}
-                        </p>
-                        {barbeiro.atendimentos && (
-                          <p className="text-gray-400 text-sm">
-                            Total de atendimentos: {barbeiro.atendimentos}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div
-                          className={`w-3 h-3 rounded-full ${
-                            barbeiro.disponivel
-                              ? "bg-green-500 animate-pulse"
-                              : "bg-red-500"
-                          }`}
-                        ></div>
-                        <span
-                          className={`text-xs font-semibold px-2 py-1 rounded ${
-                            barbeiro.disponivel
-                              ? "bg-green-500/10 text-green-500"
-                              : "bg-red-500/10 text-red-500"
-                          }`}
-                        >
-                          {barbeiro.disponivel ? "ONLINE" : "OFFLINE"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    {barber.disponivel ? "Disponível" : "Indisponível"}
+                  </span>
+                  <button
+                    onClick={() =>
+                      toggleBarberStatus(barber.id, barber.disponivel)
+                    }
+                    className="px-4 py-2 bg-[#4b4950] text-white rounded-lg hover:bg-[#3d3b42] transition-colors"
+                  >
+                    {barber.disponivel
+                      ? "Marcar Indisponível"
+                      : "Marcar Disponível"}
+                  </button>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
-
-      {/* Modal de Adicionar Barbeiro */}
-      {showAddBarberModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-[#4b4950] p-6 rounded-2xl shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4 text-[#f2b63a]">
-              Adicionar Barbeiro
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Nome</label>
-                <input
-                  type="text"
-                  value={newBarber.nome}
-                  onChange={(e) =>
-                    setNewBarber({ ...newBarber, nome: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#2e2d37] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f2b63a]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={newBarber.email}
-                  onChange={(e) =>
-                    setNewBarber({ ...newBarber, email: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#2e2d37] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f2b63a]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  Senha
-                </label>
-                <input
-                  type="password"
-                  value={newBarber.senha}
-                  onChange={(e) =>
-                    setNewBarber({ ...newBarber, senha: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-[#2e2d37] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f2b63a]"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowAddBarberModal(false)}
-                className="px-4 py-2 bg-[#2e2d37] hover:bg-opacity-80 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddBarber}
-                disabled={
-                  !newBarber.nome || !newBarber.email || !newBarber.senha
-                }
-                className="px-4 py-2 bg-[#f2b63a] hover:brightness-110 text-[#2e2d37] rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Adicionar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
