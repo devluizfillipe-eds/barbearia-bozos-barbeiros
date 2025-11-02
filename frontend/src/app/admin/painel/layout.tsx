@@ -17,23 +17,23 @@ export default function AdminPainelLayout({
     const token = localStorage.getItem("adminToken");
     const user = localStorage.getItem("user");
 
-      if (!token || !user) {
+    if (!token || !user) {
+      router.push("/admin");
+      return;
+    }
+
+    try {
+      const userData = JSON.parse(user);
+      if (!userData.roles?.includes("admin")) {
         router.push("/admin");
         return;
       }
+      setAdminName(userData.nome || "Admin");
 
-      try {
-        const userData = JSON.parse(user);
-        if (!userData.roles?.includes("admin")) {
-          router.push("/admin");
-          return;
-        }
-        setAdminName(userData.nome || "Admin");
-        
-        // Verifica se está na rota padrão /admin/painel e redireciona para /admin/painel/fila
-        if (window.location.pathname === "/admin/painel") {
-          router.push("/admin/painel/fila");
-        }
+      // Verifica se está na rota padrão /admin/painel e redireciona para /admin/painel/fila
+      if (window.location.pathname === "/admin/painel") {
+        router.push("/admin/painel/fila");
+      }
     } catch (error) {
       console.error("Erro ao processar dados do usuário:", error);
       router.push("/admin");

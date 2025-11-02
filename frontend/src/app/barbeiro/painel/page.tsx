@@ -64,7 +64,7 @@ export default function PainelBarbeiro() {
       const barberData = {
         id: userData.id,
         nome: userData.nome,
-        disponivel: true
+        disponivel: true,
       };
 
       console.log("Barber data:", barberData);

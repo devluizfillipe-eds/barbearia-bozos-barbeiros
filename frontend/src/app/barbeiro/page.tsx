@@ -34,18 +34,21 @@ export default function LoginBarbeiro() {
       }
 
       const data = await response.json();
-      console.log('Login response:', data);
+      console.log("Login response:", data);
 
       // Salvar token e dados do usuário
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user', JSON.stringify({
-        ...data.user,
-        id: data.user.barberId || data.user.id, // Usar barberId se disponível, senão usar id
-        type: 'barber'
-      }));
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          ...data.user,
+          id: data.user.barberId || data.user.id, // Usar barberId se disponível, senão usar id
+          type: "barber",
+        })
+      );
 
       // Redirecionar para o painel do barbeiro
-      router.push('/barbeiro/painel');
+      router.push("/barbeiro/painel");
     } catch (error) {
       console.error("Erro no login:", error);
       setError("Login ou senha incorretos");
