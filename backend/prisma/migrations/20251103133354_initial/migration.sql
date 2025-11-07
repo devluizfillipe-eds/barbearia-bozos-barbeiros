@@ -17,8 +17,11 @@ CREATE TABLE "barbers" (
     "nome" TEXT NOT NULL,
     "login" TEXT NOT NULL,
     "senha_hash" TEXT NOT NULL,
+    "foto_url" TEXT,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "disponivel" BOOLEAN NOT NULL DEFAULT true,
     "data_criacao" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "adminId" INTEGER,
 
     CONSTRAINT "barbers_pkey" PRIMARY KEY ("id")
 );
@@ -78,7 +81,16 @@ CREATE UNIQUE INDEX "users_telefone_key" ON "users"("telefone");
 CREATE UNIQUE INDEX "barbers_login_key" ON "barbers"("login");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "barbers_adminId_key" ON "barbers"("adminId");
+
+-- CreateIndex
+CREATE INDEX "barbers_adminId_idx" ON "barbers"("adminId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "admins_login_key" ON "admins"("login");
+
+-- AddForeignKey
+ALTER TABLE "barbers" ADD CONSTRAINT "barbers_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "queue" ADD CONSTRAINT "queue_cliente_id_fkey" FOREIGN KEY ("cliente_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

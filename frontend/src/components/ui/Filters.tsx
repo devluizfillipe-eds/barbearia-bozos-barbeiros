@@ -24,7 +24,7 @@ export function Filters({
           type="date"
           value={filterDate}
           onChange={(e) => onDateChange(e.target.value)}
-          className="w-full px-3 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          className="w-full px-3 py-2 bg-[#2e2d37] border border-[#4b4950]/20 rounded-lg text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#f2b63a] focus:border-transparent"
         />
       </div>
       <div className="flex-1 min-w-[200px]">
@@ -45,13 +45,12 @@ export function Filters({
         />
       </div>
       {(filterDate || filterService) && (
-        <Button
-          variant="secondary"
+        <button
           onClick={onClearFilters}
-          className="self-end"
+          className="self-end px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium"
         >
           Limpar Filtros
-        </Button>
+        </button>
       )}
     </div>
   );

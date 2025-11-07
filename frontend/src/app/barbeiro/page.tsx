@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { login as apiLogin } from "@/lib/api";
 
 export default function LoginBarbeiro() {
   const router = useRouter();
@@ -17,24 +18,24 @@ export default function LoginBarbeiro() {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:3000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          login,
-          password,
-          type: "barber",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Credenciais inválidas");
+      if (!login.trim() || !password.trim()) {
+        throw new Error("Por favor, preencha todos os campos");
       }
 
-      const data = await response.json();
-      console.log("Login response:", data);
+      const data = await apiLogin({
+        login: login.trim(),
+        password: password.trim(),
+        type: "barber",
+      });
+
+      if (!data.access_token || !data.user) {
+        throw new Error("Resposta inválida do servidor");
+      }
+
+      console.log("Login successful:", {
+        ...data.user,
+        token: data.access_token ? "Presente" : "Ausente",
+      });
 
       // Salvar token e dados do usuário
       localStorage.setItem("token", data.access_token);

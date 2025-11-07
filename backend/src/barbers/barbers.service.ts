@@ -53,6 +53,7 @@ export class BarbersService {
         id: true,
         nome: true,
         login: true,
+        foto_url: true,
         ativo: true,
         disponivel: true,
         data_criacao: true,
@@ -73,6 +74,7 @@ export class BarbersService {
         id: true,
         nome: true,
         login: true,
+        foto_url: true,
         ativo: true,
         disponivel: true,
         data_criacao: true,
@@ -92,6 +94,7 @@ export class BarbersService {
         id: true,
         nome: true,
         login: true,
+        foto_url: true,
         ativo: true,
         disponivel: true,
         data_criacao: true,
@@ -109,6 +112,7 @@ export class BarbersService {
         id: true,
         nome: true,
         login: true,
+        foto_url: true,
         ativo: true,
         disponivel: true,
         data_criacao: true,
@@ -182,7 +186,44 @@ export class BarbersService {
       data: {
         disponivel: !barbeiro.disponivel,
       },
+      select: {
+        id: true,
+        nome: true,
+        login: true,
+        foto_url: true,
+        ativo: true,
+        disponivel: true,
+        data_criacao: true,
+      },
     });
+  }
+
+  async updateFoto(id: number, fotoUrl: string) {
+    const barbeiro = await this.prisma.barber.findUnique({
+      where: { id },
+    });
+
+    if (!barbeiro) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
+
+    const updatedBarber = await this.prisma.barber.update({
+      where: { id },
+      data: {
+        foto_url: fotoUrl,
+      },
+      select: {
+        id: true,
+        nome: true,
+        login: true,
+        foto_url: true,
+        ativo: true,
+        disponivel: true,
+        data_criacao: true,
+      },
+    });
+
+    return updatedBarber;
   }
 
   async associarAdmin(barberId: number, adminId: number) {

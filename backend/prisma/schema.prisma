@@ -26,6 +26,7 @@ model Barber {
   nome       String
   login      String   @unique
   senha_hash String
+  foto_url   String?  // Campo adicionado para foto de perfil
   ativo      Boolean  @default(true)
   disponivel   Boolean  @default(true) 
   data_criacao DateTime @default(now())
@@ -43,6 +44,7 @@ model Admin {
   nome       String
   login      String   @unique
   senha_hash String
+  foto_url   String?
   data_criacao DateTime @default(now())
   
   barber     Barber?

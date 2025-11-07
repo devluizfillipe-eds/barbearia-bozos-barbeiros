@@ -1,8 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Configurar pasta de uploads como estática
+  app.useStaticAssets('uploads', {
+    prefix: '/uploads',
+  });
 
   // Configurar CORS
   app.enableCors({

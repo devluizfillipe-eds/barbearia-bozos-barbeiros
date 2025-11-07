@@ -3,18 +3,17 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import ServiceSelector from "@/components/ServiceSelector";
-
-interface Barber {
-  id: number;
-  nome: string;
-  login: string;
-  ativo: boolean;
-  disponivel: boolean;
-  data_criacao: string;
-}
+import {
+  fetchAvailableBarbers,
+  fetchFeaturedAdmin,
+  type Barber,
+  type PublicAdmin,
+} from "@/lib/api";
+import { getImageUrl } from "@/lib/utils";
 
 export default function Home() {
   const [barbers, setBarbers] = useState<Barber[]>([]);
+  const [featuredAdmin, setFeaturedAdmin] = useState<PublicAdmin | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [step, setStep] = useState<"service" | "barber">("service");
@@ -25,22 +24,12 @@ export default function Home() {
 
   const fetchBarbers = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:3000/barbers/disponiveis",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Erro: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setBarbers(data);
+      const [barbersData, adminData] = await Promise.all([
+        fetchAvailableBarbers(),
+        fetchFeaturedAdmin(),
+      ]);
+      setBarbers(barbersData);
+      setFeaturedAdmin(adminData);
     } catch (error) {
       console.error("Erro ao carregar barbeiros:", error);
       alert(
@@ -133,65 +122,110 @@ export default function Home() {
               </button>
             </div>
           </div>
-        ) : barbers.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-[#4b4950] rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-10 h-10 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold mb-2 font-display">
-              Nenhum barbeiro disponível
-            </h3>
-            <p className="text-gray-400">
-              Todos os barbeiros estão ocupados no momento
-            </p>
-          </div>
         ) : (
-          barbers.map((barber) => (
-            <div
-              key={barber.id}
-              className="relative bg-[#4b4950] rounded-2xl p-4 pl-6 flex items-center justify-between shadow-lg"
-            >
-              {/* Barra lateral */}
-              <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#f2b63a] rounded-l-2xl"></div>
+          <div className="space-y-4">
+            {featuredAdmin && (
+              <div className="relative bg-[#4b4950] rounded-2xl p-4 pl-6 flex items-center justify-between shadow-lg border border-[#f2b63a]/30">
+                <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#f2b63a] rounded-l-2xl"></div>
 
-              <div className="flex items-center gap-4">
-                {/* Avatar do Barbeiro */}
-                <div className="w-16 h-16 bg-[#3d3c41] rounded-full overflow-hidden flex items-center justify-center">
-                  <span className="text-2xl text-white font-regular">
-                    {barber.nome.charAt(0)}
-                  </span>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-[#3d3c41] rounded-full overflow-hidden flex items-center justify-center">
+                    <Image
+                      src={
+                        featuredAdmin.foto_url
+                          ? getImageUrl(featuredAdmin.foto_url) ?? "/images/logo.jpg"
+                          : "/images/logo.jpg"
+                      }
+                      alt={`Foto de ${featuredAdmin.nome}`}
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-regular">{featuredAdmin.nome}</h3>
+                    <p className="text-gray-300 text-sm italic">
+                      administração responsável pelo estúdio
+                    </p>
+                  </div>
                 </div>
 
-                {/* Informações */}
-                <div>
-                  <h3 className="text-xl font-regular">{barber.nome}</h3>
-                  <p className="text-gray-300 text-sm italic">
-                    disponível para atendimento
-                  </p>
-                </div>
+                <button
+                  onClick={() => (window.location.href = "/admin")}
+                  className="bg-[#f2b63a] text-[#2e2d37] font-bold py-2 px-4 rounded-lg hover:brightness-110 transition-all"
+                >
+                  Acessar área admin
+                </button>
               </div>
+            )}
 
-              {/* Botão Entrar na fila */}
-              <button
-                onClick={() => (window.location.href = `/fila/${barber.id}`)}
-                className="bg-[#f2b63a] text-[#2e2d37] font-bold py-2 px-4 rounded-lg hover:brightness-110 transition-all"
-              >
-                Entrar na fila
-              </button>
-            </div>
-          ))
+            {barbers.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-[#4b4950] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    className="w-10 h-10 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 font-display">
+                  Nenhum barbeiro disponível
+                </h3>
+                <p className="text-gray-400">
+                  Todos os barbeiros estão ocupados no momento
+                </p>
+              </div>
+            ) : (
+              barbers.map((barber) => {
+                const barberImage = barber.foto_url
+                  ? getImageUrl(barber.foto_url) ?? "/images/logo.jpg"
+                  : "/images/logo.jpg";
+
+                return (
+                  <div
+                    key={barber.id}
+                    className="relative bg-[#4b4950] rounded-2xl p-4 pl-6 flex items-center justify-between shadow-lg"
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#f2b63a] rounded-l-2xl"></div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-[#3d3c41] rounded-full overflow-hidden flex items-center justify-center">
+                        <Image
+                          src={barberImage}
+                          alt={`Foto de ${barber.nome}`}
+                          width={64}
+                          height={64}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      <div>
+                        <h3 className="text-xl font-regular">{barber.nome}</h3>
+                        <p className="text-gray-300 text-sm italic">
+                          disponível para atendimento
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => (window.location.href = `/fila/${barber.id}`)}
+                      className="bg-[#f2b63a] text-[#2e2d37] font-bold py-2 px-4 rounded-lg hover:brightness-110 transition-all"
+                    >
+                      Entrar na fila
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
         )}
       </main>
 

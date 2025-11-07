@@ -1,42 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchServices } from "@/lib/api";
 
-interface Service {
-  id: number;
-  name: string;
-  price: number;
-  duration: number;
-}
+import { Service } from "@/lib/api";
 
 interface ServiceSelectorProps {
   onServiceSelect: (selectedServices: number[]) => void;
   selectedServices: number[];
 }
 
+interface ServiceDisplayProps {
+  id: number;
+  name: string;
+  price: number;
+  duration: number;
+}
+
 export default function ServiceSelector({
   onServiceSelect,
   selectedServices,
 }: ServiceSelectorProps) {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceDisplayProps[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchServices = async () => {
+    const loadServices = async () => {
       try {
-        const response = await fetch("http://localhost:3000/services/active");
-        if (!response.ok) {
-          throw new Error("Erro ao carregar serviços");
-        }
-        const data = await response.json();
-        setServices(
-          data.map((service: any) => ({
-            id: service.id,
-            name: service.nome,
-            price: service.preco,
-            duration: service.tempo_estimado,
-          }))
-        );
+        const servicesData = await fetchServices();
+        const mappedServices = servicesData.map((service) => ({
+          id: service.id,
+          name: service.nome,
+          price: service.preco,
+          duration: service.tempo_estimado,
+        }));
+        setServices(mappedServices);
       } catch (error) {
         console.error("Erro ao carregar serviços:", error);
       } finally {
@@ -44,7 +42,7 @@ export default function ServiceSelector({
       }
     };
 
-    fetchServices();
+    loadServices();
   }, []);
 
   const toggleService = (serviceId: number) => {
@@ -70,7 +68,7 @@ export default function ServiceSelector({
         Selecione os serviços desejados
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {services.map((service: Service) => (
+        {services.map((service: ServiceDisplayProps) => (
           <button
             key={service.id}
             onClick={() => toggleService(service.id)}

@@ -13,9 +13,14 @@ export default function BarbeirosAdmin() {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editingBarber, setEditingBarber] = useState<string | null>(null);
   const [newBarber, setNewBarber] = useState({
     nome: "",
     login: "",
+    senha: "",
+  });
+  const [editForm, setEditForm] = useState({
+    nome: "",
     senha: "",
   });
 
@@ -27,7 +32,7 @@ export default function BarbeirosAdmin() {
     try {
       const response = await fetch("http://localhost:3000/barbers", {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
 
@@ -52,7 +57,7 @@ export default function BarbeirosAdmin() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
           nome: newBarber.nome,
@@ -81,7 +86,7 @@ export default function BarbeirosAdmin() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({ disponivel: !currentStatus }),
       });
@@ -92,6 +97,45 @@ export default function BarbeirosAdmin() {
       fetchBarbers();
     } catch (err) {
       setError("Erro ao atualizar status do barbeiro");
+      console.error(err);
+    }
+  };
+
+  const startEditing = (barber: Barber) => {
+    setEditingBarber(barber.id);
+    setEditForm({
+      nome: barber.nome,
+      senha: "",
+    });
+  };
+
+  const handleEdit = async (barberId: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/barbers/${barberId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            nome: editForm.nome,
+            ...(editForm.senha ? { senha: editForm.senha } : {}),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Falha ao editar barbeiro");
+      }
+
+      setEditingBarber(null);
+      setEditForm({ nome: "", senha: "" });
+      fetchBarbers();
+    } catch (err: any) {
+      setError(err.message || "Erro ao editar barbeiro");
       console.error(err);
     }
   };
@@ -174,33 +218,79 @@ export default function BarbeirosAdmin() {
               key={barber.id}
               className="flex items-center justify-between p-4 bg-[#2e2d37] rounded-lg border border-gray-700/50"
             >
-              <div>
-                <h3 className="font-medium text-white">{barber.nome}</h3>
-                <p className="text-sm text-gray-400 mt-1">
-                  Login: {barber.login}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    barber.disponivel
-                      ? "bg-green-900/20 text-green-400 border border-green-500/20"
-                      : "bg-red-900/20 text-red-400 border border-red-500/20"
-                  }`}
-                >
-                  {barber.disponivel ? "Disponível" : "Indisponível"}
-                </span>
-                <button
-                  onClick={() =>
-                    toggleBarberStatus(barber.id, barber.disponivel)
-                  }
-                  className="px-4 py-2 bg-[#4b4950] text-white rounded-lg hover:bg-[#3d3b42] transition-colors"
-                >
-                  {barber.disponivel
-                    ? "Marcar Indisponível"
-                    : "Marcar Disponível"}
-                </button>
-              </div>
+              {editingBarber === barber.id ? (
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={editForm.nome}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, nome: e.target.value })
+                    }
+                    placeholder="Nome do barbeiro"
+                    className="px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={editForm.senha}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, senha: e.target.value })
+                    }
+                    placeholder="Nova senha (opcional)"
+                    className="px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(barber.id)}
+                      className="px-4 py-2 bg-[#f2b63a] text-[#2e2d37] rounded-lg hover:brightness-110 transition-colors text-sm font-medium"
+                    >
+                      Salvar
+                    </button>
+                    <button
+                      onClick={() => setEditingBarber(null)}
+                      className="px-4 py-2 bg-[#4b4950] text-white rounded-lg hover:bg-[#3d3b42] transition-colors text-sm"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="font-medium text-white">{barber.nome}</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Login: {barber.login}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        barber.disponivel
+                          ? "bg-green-900/20 text-green-400 border border-green-500/20"
+                          : "bg-red-900/20 text-red-400 border border-red-500/20"
+                      }`}
+                    >
+                      {barber.disponivel ? "Disponível" : "Indisponível"}
+                    </span>
+                    <button
+                      onClick={() => startEditing(barber)}
+                      className="px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() =>
+                        toggleBarberStatus(barber.id, barber.disponivel)
+                      }
+                      className="px-4 py-2 bg-[#4b4950] text-white rounded-lg hover:bg-[#3d3b42] transition-colors text-sm"
+                    >
+                      {barber.disponivel
+                        ? "Marcar Indisponível"
+                        : "Marcar Disponível"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>

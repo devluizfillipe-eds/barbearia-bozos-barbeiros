@@ -8,7 +8,10 @@ import {
   Delete,
   UseGuards,
   Query,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { BarbersService } from './barbers.service';
 import { CreateBarberDto } from './dto/create-barber.dto';
 import { UpdateBarberDto } from './dto/update-barber.dto';
@@ -66,6 +69,31 @@ export class BarbersController {
   @Roles('admin')
   associarAdmin(@Body() dto: AssociarAdminDto) {
     return this.barbersService.associarAdmin(dto.barberId, dto.adminId);
+  }
+
+  @Post(':id/foto')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      dest: './uploads',
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+      fileFilter: (req, file, cb) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+          return cb(new Error('Apenas imagens são permitidas.'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadFoto(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const fileName = file.filename;
+    const fileUrl = `/uploads/${fileName}`;
+    return this.barbersService.updateFoto(parseInt(id), fileUrl);
   }
 
   @Delete(':id')

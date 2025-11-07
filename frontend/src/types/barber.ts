@@ -3,6 +3,7 @@ export interface Barber {
   nome: string;
   email: string;
   disponivel: boolean;
+  foto_url?: string;
   atendimentos?: number;
   senha?: string;
 }

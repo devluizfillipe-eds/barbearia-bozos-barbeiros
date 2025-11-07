@@ -52,22 +52,25 @@ export default function FilaAdmin() {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       console.log("[Queue] User data:", user);
 
-      if (!user.id) {
-        console.error("[Queue] User ID não encontrado no localStorage");
-        setError("Erro: Usuário não identificado");
+      if (!user.barberId) {
+        console.error("[Queue] Barber ID não encontrado no localStorage");
+        setError("Erro: Barbeiro não identificado");
         return;
       }
 
       console.log(
         "[Queue] Fazendo requisição para:",
-        `http://localhost:3000/queue/${user.id}`
+        `http://localhost:3000/queue/${user.barberId}`
       );
 
-      const response = await fetch(`http://localhost:3000/queue/${user.id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-      });
+      const response = await fetch(
+        `http://localhost:3000/queue/${user.barberId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         console.error("[Queue] Resposta não OK:", {
@@ -99,12 +102,16 @@ export default function FilaAdmin() {
 
   const fetchBarberStatus = async () => {
     try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}").id;
-      const response = await fetch(`http://localhost:3000/barbers/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-      });
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const barberId = user.barberId;
+      const response = await fetch(
+        `http://localhost:3000/barbers/${barberId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (!response.ok) throw new Error("Falha ao carregar status do barbeiro");
 
@@ -117,15 +124,19 @@ export default function FilaAdmin() {
 
   const toggleAvailability = async () => {
     try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}").id;
-      const response = await fetch(`http://localhost:3000/barbers/${userId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-        body: JSON.stringify({ disponivel: !isAvailable }),
-      });
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const barberId = user.barberId;
+      const response = await fetch(
+        `http://localhost:3000/barbers/${barberId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ disponivel: !isAvailable }),
+        }
+      );
 
       if (!response.ok) throw new Error("Falha ao atualizar disponibilidade");
 
@@ -143,10 +154,10 @@ export default function FilaAdmin() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
-          barbeiro_id: user.id,
+          barbeiro_id: user.barberId,
           cliente: {
             nome: novoCliente.nome,
             telefone: novoCliente.telefone,
@@ -175,7 +186,7 @@ export default function FilaAdmin() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({ status }),
       });

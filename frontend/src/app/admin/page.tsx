@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { login as apiLogin } from "@/lib/api";
 
 export default function AdminLogin() {
   const [login, setLogin] = useState("");
@@ -15,62 +16,25 @@ export default function AdminLogin() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    console.log("Dados do login:", {
-      login,
-      type: "admin",
-      url: "http://localhost:3000/auth/login",
-    });
 
     try {
-      const response = await fetch("http://localhost:3000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          login,
-          password,
-          type: "admin",
-        }),
+      const data = await apiLogin({
+        login,
+        password,
+        type: "admin",
       });
 
-      // Verifica se a resposta é JSON antes de tentar fazer o parse
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error("Resposta não é JSON:", text);
-        throw new Error(
-          "Resposta inesperada do servidor. Verifique os logs do backend."
-        );
-      }
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-        console.log("Resposta do servidor:", {
-          status: response.status,
-          headers: Object.fromEntries(response.headers.entries()),
-          data,
-        });
-      } catch (e) {
-        console.error("Resposta não é JSON:", text);
-        throw new Error("Resposta inválida do servidor");
-      }
-
-      if (response.ok) {
-        console.log("Login bem-sucedido, token recebido:", data.access_token);
-        localStorage.setItem("adminToken", data.access_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        router.push("/admin/painel/fila");
-      } else {
-        console.error("Erro na resposta:", {
-          status: response.status,
-          statusText: response.statusText,
-          message: data.message || "Sem mensagem de erro",
-        });
-        setError(data.message || "Credenciais inválidas");
-      }
+      console.log("Login bem-sucedido, token recebido:", data.access_token);
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("adminToken", data.access_token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          ...data.user,
+          type: "admin",
+        })
+      );
+      router.push("/admin/painel/fila");
     } catch (err) {
       console.error("Erro durante o login:", err);
       setError(
