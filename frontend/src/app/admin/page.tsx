@@ -62,9 +62,9 @@ export default function AdminLogin() {
         </div>
       </div>
 
-      {/* Título Principal */}
+      {/* Título Principal (uma linha) */}
       <div className="max-w-3xl mx-auto mt-8 px-4">
-        <h1 className="text-3xl text-[#f2b63a] font-[700] text-center font-['Almendra'] tracking-wider">
+        <h1 className="text-2xl sm:text-3xl text-[#f2b63a] font-[700] text-center font-['Almendra'] tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">
           LOGIN ADMINISTRATIVO
         </h1>
       </div>
@@ -72,23 +72,18 @@ export default function AdminLogin() {
       {/* Conteúdo Principal */}
       <main className="max-w-3xl mx-auto mt-8 px-4 space-y-4">
         <div className="bg-[#4b4950] rounded-2xl p-6 shadow-lg max-w-md mx-auto">
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg mb-4 text-center text-sm">
-              {error}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Login Admin
+                Login
               </label>
               <input
                 type="text"
                 id="login"
                 value={login}
                 onChange={(e) => setLogin(e.target.value)}
-                className="w-full p-3 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                className="w-full px-3 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#f2b63a]"
+                placeholder="Seu login"
                 required
               />
             </div>
@@ -102,10 +97,15 @@ export default function AdminLogin() {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+                className="w-full px-3 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#f2b63a]"
+                placeholder="Sua senha"
                 required
               />
             </div>
+
+            {error && (
+              <div className="text-red-400 text-sm text-center">{error}</div>
+            )}
 
             <button
               type="submit"

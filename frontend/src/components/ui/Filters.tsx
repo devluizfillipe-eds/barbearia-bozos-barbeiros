@@ -1,5 +1,4 @@
 import { Select } from "./Select";
-import { Button } from "./Button";
 
 interface FiltersProps {
   filterDate: string;

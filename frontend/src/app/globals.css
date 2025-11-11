@@ -14,6 +14,28 @@ body {
   font-weight: 400;
 }
 
+/* Corrige aparência de campos com autofill (Chrome/Safari) para manter o tema escuro */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px #2e2d37 inset;
+  box-shadow: 0 0 0px 1000px #2e2d37 inset;
+  -webkit-text-fill-color: #f4ede8;
+  caret-color: #f4ede8;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Firefox autofill */
+input:-moz-autofill,
+input:-moz-autofill:hover,
+input:-moz-autofill:focus,
+input:-moz-autofill:active {
+  box-shadow: 0 0 0px 1000px #2e2d37 inset;
+  -moz-text-fill-color: #f4ede8;
+  caret-color: #f4ede8;
+}
+
 .font-regular {
   font-family: "Almendra", serif;
   font-weight: 400;

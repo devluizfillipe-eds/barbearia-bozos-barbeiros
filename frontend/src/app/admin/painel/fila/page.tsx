@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Modal } from "@/components/ui/Modal";
+import { SERVICOS } from "@/constants/servicos";
 
 interface Cliente {
   nome: string;
@@ -10,234 +12,132 @@ interface Cliente {
 interface NovoCliente {
   nome: string;
   telefone: string;
-  servicos: string[];
+  servicos: number[];
 }
 
 interface QueueEntry {
-  id: string;
-  posicao: number;
+  id: number | string;
+  posicao?: number;
   cliente: Cliente;
-  horaEntrada: string;
-  servicos: Array<{
-    id: string;
-    nome: string;
-    tempo_estimado: number;
-  }>;
-  status: "waiting" | "in_service" | "completed" | "cancelled" | "no_show";
+  hora_entrada?: string;
+  horaEntrada?: string | null;
+  servicos?: Array<{ id: number | string; name?: string; nome?: string }>;
+  status: string;
 }
 
 export default function FilaAdmin() {
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isAvailable, setIsAvailable] = useState(false);
-  const [showAddClientForm, setShowAddClientForm] = useState(false);
-  const [novoCliente, setNovoCliente] = useState<NovoCliente>({
+  const [updating, setUpdating] = useState(false);
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [newClient, setNewClient] = useState<NovoCliente>({
     nome: "",
     telefone: "",
     servicos: [],
   });
 
   useEffect(() => {
-    console.log("[Queue] Inicializando componente");
     fetchQueue();
-    fetchBarberStatus();
-    // Atualiza a fila a cada 30 segundos
-    const interval = setInterval(fetchQueue, 30000);
+    const interval = setInterval(fetchQueue, 15000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchQueue = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      console.log("[Queue] User data:", user);
-
       if (!user.barberId) {
-        console.error("[Queue] Barber ID não encontrado no localStorage");
         setError("Erro: Barbeiro não identificado");
         return;
       }
-
-      console.log(
-        "[Queue] Fazendo requisição para:",
-        `http://localhost:3000/queue/${user.barberId}`
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:3000/queue/${user.barberId}/updates`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      const response = await fetch(
-        `http://localhost:3000/queue/${user.barberId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        console.error("[Queue] Resposta não OK:", {
-          status: response.status,
-          statusText: response.statusText,
-        });
-        const errorText = await response.text();
-        console.error("[Queue] Erro detalhado:", errorText);
-        throw new Error("Falha ao carregar fila");
-      }
-
-      const data = await response.json();
-      console.log("[Queue] Dados recebidos:", data);
-
-      if (!Array.isArray(data)) {
-        console.error("[Queue] Dados recebidos não são um array:", data);
-        setError("Erro: Formato de dados inválido");
-        return;
-      }
-
-      setQueueEntries(data);
-    } catch (err) {
+      if (!res.ok) throw new Error("Falha ao carregar fila");
+      const data = await res.json();
+      const entries = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.queue)
+          ? data.queue
+          : [];
+      setQueueEntries(entries);
+    } catch (e) {
       setError("Erro ao carregar fila de espera");
-      console.error("[Queue] Erro completo:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchBarberStatus = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const barberId = user.barberId;
-      const response = await fetch(
-        `http://localhost:3000/barbers/${barberId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (!response.ok) throw new Error("Falha ao carregar status do barbeiro");
-
-      const data = await response.json();
-      setIsAvailable(data.disponivel);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const toggleAvailability = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const barberId = user.barberId;
-      const response = await fetch(
-        `http://localhost:3000/barbers/${barberId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ disponivel: !isAvailable }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Falha ao atualizar disponibilidade");
-
-      setIsAvailable(!isAvailable);
-    } catch (err) {
-      setError("Erro ao atualizar disponibilidade");
-      console.error(err);
-    }
-  };
-
-  const adicionarClienteManualmente = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const response = await fetch("http://localhost:3000/queue/enter", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          barbeiro_id: user.barberId,
-          cliente: {
-            nome: novoCliente.nome,
-            telefone: novoCliente.telefone,
-          },
-          servicos: novoCliente.servicos,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Falha ao adicionar cliente");
-
-      setShowAddClientForm(false);
-      setNovoCliente({ nome: "", telefone: "", servicos: [] });
-      fetchQueue();
-    } catch (err) {
-      setError("Erro ao adicionar cliente à fila");
-      console.error(err);
-    }
-  };
-
   const updateStatus = async (
-    id: string,
-    status: "in_service" | "completed" | "cancelled" | "no_show"
+    id: number | string,
+    status: "in_service" | "completed" | "no_show"
   ) => {
+    setUpdating(true);
     try {
-      const response = await fetch(`http://localhost:3000/queue/${id}/status`, {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/queue/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status }),
+        // Converter status para os valores aceitos no backend
+        body: JSON.stringify({
+          status:
+            status === "in_service"
+              ? "ATENDENDO"
+              : status === "completed"
+                ? "ATENDIDO"
+                : status === "no_show"
+                  ? "FALTOU"
+                  : status,
+        }),
       });
-
-      if (!response.ok) throw new Error("Falha ao atualizar status");
-
+      if (!res.ok) throw new Error("Falha ao atualizar status");
       fetchQueue();
-    } catch (err) {
+    } catch (e) {
       setError("Erro ao atualizar status");
-      console.error(err);
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const statusLower = status.toLowerCase();
-    switch (statusLower) {
-      case "waiting":
-      case "aguardando":
-        return "bg-yellow-900/20 text-yellow-400 border-yellow-500/20";
-      case "in_service":
-      case "em_atendimento":
-        return "bg-blue-900/20 text-blue-400 border-blue-500/20";
-      case "completed":
-      case "finalizado":
-        return "bg-green-900/20 text-green-400 border-green-500/20";
-      case "cancelled":
-      case "cancelado":
-        return "bg-red-900/20 text-red-400 border-red-500/20";
-      case "no_show":
-      case "nao_compareceu":
-        return "bg-orange-900/20 text-orange-400 border-orange-500/20";
-      default:
-        return "bg-gray-900/20 text-gray-400 border-gray-500/20";
+  const adicionarCliente = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3000/queue/enter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          barbeiro_id: user.barberId,
+          nome: newClient.nome,
+          telefone: newClient.telefone,
+          serviceIds: newClient.servicos,
+        }),
+      });
+      if (!res.ok) throw new Error("Falha ao adicionar cliente");
+      setNewClient({ nome: "", telefone: "", servicos: [] });
+      setShowAddClientModal(false);
+      fetchQueue();
+    } catch (e) {
+      setError("Erro ao adicionar cliente à fila");
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "waiting":
-        return "Aguardando";
-      case "in_service":
-        return "Em Atendimento";
-      case "completed":
-        return "Concluído";
-      case "cancelled":
-        return "Cancelado";
-      case "no_show":
-        return "Não Compareceu";
-      default:
-        return status;
-    }
+  const statusText = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === "in_service" || s === "atendendo" || s === "atendendo")
+      return "em atendimento";
+    if (s === "waiting" || s === "aguardando") return "aguardando";
+    if (s === "completed" || s === "atendido") return "concluído";
+    if (s === "no_show" || s === "faltou") return "faltou";
+    return s;
   };
 
   if (loading) {
@@ -251,220 +151,214 @@ export default function FilaAdmin() {
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="bg-red-900/20 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {/* Status do Barbeiro */}
-      <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50 mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-semibold text-[#f2b63a] mb-2">
-              Status de Atendimento
-            </h2>
-            <p className="text-gray-400">
-              {isAvailable
-                ? "Você está disponível para atendimentos"
-                : "Você está indisponível para atendimentos"}
-            </p>
-          </div>
-          <button
-            onClick={toggleAvailability}
-            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-              isAvailable
-                ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-green-600 text-white hover:bg-green-700"
-            }`}
+      <div className="bg-[#26242d] rounded-xl p-4 sm:p-6">
+        <button
+          onClick={() => setShowAddClientModal(true)}
+          className="w-full sm:w-auto px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium flex items-center"
+        >
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            {isAvailable ? "Ficar Indisponível" : "Ficar Disponível"}
-          </button>
-        </div>
-      </div>
-
-      {/* Formulário de Adição Manual de Cliente */}
-      <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-[#f2b63a]">
-            Adicionar Cliente Manualmente
-          </h2>
-          <button
-            onClick={() => setShowAddClientForm(!showAddClientForm)}
-            className="px-4 py-2 bg-[#f2b63a] text-black rounded-lg hover:bg-[#d9a434] transition-colors"
-          >
-            {showAddClientForm ? "Cancelar" : "Adicionar Cliente"}
-          </button>
-        </div>
-
-        {showAddClientForm && (
-          <div className="space-y-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                Nome do Cliente
-              </label>
-              <input
-                type="text"
-                value={novoCliente.nome}
-                onChange={(e) =>
-                  setNovoCliente({ ...novoCliente, nome: e.target.value })
-                }
-                className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#f2b63a]"
-                placeholder="Nome do cliente"
-              />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Adicionar Cliente
+        </button>
+        <div className="space-y-3 mt-6">
+          {queueEntries.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              Nenhum cliente na fila no momento
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                Telefone
-              </label>
-              <input
-                type="tel"
-                value={novoCliente.telefone}
-                onChange={(e) =>
-                  setNovoCliente({ ...novoCliente, telefone: e.target.value })
-                }
-                className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#f2b63a]"
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                Serviços
-              </label>
-              <select
-                multiple
-                value={novoCliente.servicos}
-                onChange={(e) =>
-                  setNovoCliente({
-                    ...novoCliente,
-                    servicos: Array.from(
-                      e.target.selectedOptions,
-                      (option) => option.value
-                    ),
-                  })
-                }
-                className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#f2b63a]"
-              >
-                <option value="1">Corte de Cabelo</option>
-                <option value="2">Barba</option>
-                <option value="3">Corte + Barba</option>
-              </select>
-            </div>
-            <button
-              onClick={adicionarClienteManualmente}
-              className="w-full px-4 py-2 bg-[#f2b63a] text-black rounded-lg hover:bg-[#d9a434] transition-colors"
-            >
-              Adicionar à Fila
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Lista da Fila */}
-      <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50">
-        <h2 className="text-xl font-semibold text-[#f2b63a] mb-6">
-          Fila de Espera
-        </h2>
-        <div className="space-y-4">
-          {queueEntries?.length > 0 ? (
+          ) : (
             queueEntries.map((entry) => (
               <div
                 key={entry.id}
-                className="p-4 bg-[#2e2d37] rounded-lg border border-gray-700/50"
+                className="p-4 bg-[#2e2d37] rounded-lg border border-[#4b4950]/20"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-medium text-white">
-                      {entry.cliente?.nome || "Cliente sem nome"}
-                    </h3>
-                    <p className="text-sm text-gray-400">
-                      {entry.cliente?.telefone || "Sem telefone"}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
-                      entry.status
-                    )}`}
-                  >
-                    {getStatusText(entry.status)}
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-sm text-gray-400">
-                    <span>Posição: {entry.posicao || "N/A"}</span>
-                    <span className="mx-2">•</span>
-                    <span>
-                      Entrada:{" "}
-                      {entry.horaEntrada
-                        ? new Date(entry.horaEntrada).toLocaleTimeString()
-                        : "N/A"}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {Array.isArray(entry.servicos) &&
-                    entry.servicos.length > 0 ? (
-                      entry.servicos.map((servico) => (
-                        <span
-                          key={servico.id}
-                          className="px-2 py-1 bg-[#4b4950] text-sm rounded-full text-white"
-                        >
-                          {servico.nome || "Sem nome"} -{" "}
-                          {servico.tempo_estimado || 0}min
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-gray-400">
-                        Nenhum serviço registrado
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="font-medium text-[#f2b63a]">
+                        {entry.cliente?.nome || "Cliente sem nome"}
+                      </h3>
+                      <span
+                        className={`text-xs sm:text-sm ${
+                          ["in_service", "atendendo", "atendendo"].includes(
+                            entry.status.toLowerCase()
+                          )
+                            ? "text-green-400"
+                            : ["waiting", "aguardando"].includes(
+                                  entry.status.toLowerCase()
+                                )
+                              ? "text-white"
+                              : "text-gray-400"
+                        }`}
+                      >
+                        {statusText(entry.status)}
                       </span>
-                    )}
+                    </div>
+                    <div className="text-sm text-gray-400 mt-1">
+                      Telefone: {entry.cliente?.telefone || "Sem telefone"}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {entry.servicos && entry.servicos.length > 0 ? (
+                        entry.servicos.map((s) => (
+                          <span
+                            key={String(s.id)}
+                            className="px-2 py-1 bg-[#4b4950]/20 text-gray-300 rounded text-xs"
+                          >
+                            {s.name || s.nome || "Sem nome"}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-gray-400">
+                          Nenhum serviço selecionado
+                        </span>
+                      )}
+                    </div>
                   </div>
-
-                  {(entry.status === "waiting" ||
-                    entry.status.toUpperCase() === "AGUARDANDO") && (
-                    <div className="flex flex-wrap gap-2 mt-3">
+                  <div className="mt-3 sm:mt-0 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                    {["waiting", "aguardando"].includes(
+                      entry.status.toLowerCase()
+                    ) && (
                       <button
                         onClick={() => updateStatus(entry.id, "in_service")}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                        disabled={updating}
+                        className="px-4 py-2 bg-[#4b4950] text-green-400 rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Iniciar Atendimento
                       </button>
-                      <button
-                        onClick={() => updateStatus(entry.id, "no_show")}
-                        className="px-4 py-2 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors"
-                      >
-                        Não Compareceu
-                      </button>
-                      <button
-                        onClick={() => updateStatus(entry.id, "cancelled")}
-                        className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  )}
-
-                  {entry.status === "in_service" && (
-                    <div className="flex gap-2 mt-3">
+                    )}
+                    {["in_service", "atendendo", "atendendo"].includes(
+                      entry.status.toLowerCase()
+                    ) && (
                       <button
                         onClick={() => updateStatus(entry.id, "completed")}
-                        className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                        disabled={updating}
+                        className="px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Concluir Atendimento
+                        Finalizar Atendimento
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <button
+                      onClick={() => updateStatus(entry.id, "no_show")}
+                      disabled={
+                        updating || entry.status.toLowerCase() === "completed"
+                      }
+                      className="px-4 py-2 bg-[#4b4950] text-red-400 rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Faltou
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-gray-400">
+                  <span>Posição: {entry.posicao ?? "N/A"}</span>
+                  <span className="mx-2">•</span>
+                  <span>
+                    Entrada:{" "}
+                    {entry.horaEntrada || entry.hora_entrada
+                      ? new Date(
+                          entry.horaEntrada || entry.hora_entrada || ""
+                        ).toLocaleTimeString()
+                      : "N/A"}
+                  </span>
                 </div>
               </div>
             ))
-          ) : (
-            <div className="text-center py-8 text-gray-400">
-              Nenhum cliente na fila de espera
-            </div>
           )}
         </div>
       </div>
+      <div className="flex justify-end mt-4">
+        <p className="text-gray-500 text-xs">
+          Atualizando automaticamente a cada 15 segundos
+        </p>
+      </div>
+
+      <Modal
+        isOpen={showAddClientModal}
+        onClose={() => setShowAddClientModal(false)}
+        title="ADICIONAR CLIENTE"
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Nome</label>
+            <input
+              type="text"
+              value={newClient.nome}
+              onChange={(e) =>
+                setNewClient({ ...newClient, nome: e.target.value })
+              }
+              className="w-full px-3 py-2 bg-[#2e2d37] text-gray-300 border border-[#4b4950]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f2b63a] focus:border-transparent"
+              placeholder="Nome do cliente"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Telefone</label>
+            <input
+              type="tel"
+              value={newClient.telefone}
+              onChange={(e) =>
+                setNewClient({ ...newClient, telefone: e.target.value })
+              }
+              className="w-full px-3 py-2 bg-[#2e2d37] text-gray-300 border border-[#4b4950]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f2b63a] focus:border-transparent"
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Serviços</label>
+            <div className="space-y-3 bg-[#2e2d37] p-4 rounded-lg border border-[#4b4950]/20">
+              {SERVICOS.map((servico) => (
+                <label key={servico.id} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={newClient.servicos.includes(servico.id)}
+                    onChange={(e) => {
+                      const updated = e.target.checked
+                        ? [...newClient.servicos, servico.id]
+                        : newClient.servicos.filter((id) => id !== servico.id);
+                      setNewClient({ ...newClient, servicos: updated });
+                    }}
+                    className="mr-3 h-4 w-4 rounded border-[#4b4950]/20 text-[#f2b63a] focus:ring-[#f2b63a] focus:ring-offset-0 bg-[#26242d]"
+                  />
+                  <span className="text-gray-300 text-sm">{servico.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end space-x-3 mt-8">
+          <button
+            onClick={() => setShowAddClientModal(false)}
+            className="px-4 py-2 bg-[#4b4950]/20 text-gray-400 rounded-lg hover:bg-[#4b4950]/30 transition-colors text-sm font-medium"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={adicionarCliente}
+            disabled={
+              !newClient.nome ||
+              !newClient.telefone ||
+              newClient.servicos.length === 0
+            }
+            className={`px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg transition-colors text-sm font-medium ${
+              !newClient.nome ||
+              !newClient.telefone ||
+              newClient.servicos.length === 0
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-[#3d3b42]"
+            }`}
+          >
+            Adicionar
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

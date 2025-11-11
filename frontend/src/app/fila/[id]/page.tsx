@@ -41,6 +41,18 @@ export default function EntrarFila() {
     setMessage("");
 
     try {
+      // Recupera serviços selecionados na Home (se houver)
+      let serviceIds: number[] | undefined = undefined;
+      try {
+        if (typeof window !== "undefined") {
+          const raw = localStorage.getItem("pendingServiceIds");
+          const parsed = raw ? (JSON.parse(raw) as number[]) : [];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            serviceIds = parsed;
+          }
+        }
+      } catch {}
+
       const response = await fetch("http://localhost:3000/queue/enter", {
         method: "POST",
         headers: {
@@ -50,6 +62,7 @@ export default function EntrarFila() {
           nome,
           telefone,
           barbeiro_id: barberId,
+          ...(serviceIds ? { serviceIds } : {}),
         }),
       });
 
@@ -58,6 +71,15 @@ export default function EntrarFila() {
       if (!response.ok) {
         throw new Error(data.message || "Erro ao entrar na fila");
       }
+
+      // Persistir para facilitar retorno do cliente
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("queueEntryId", String(data.id));
+          localStorage.setItem("clientPhone", telefone);
+          localStorage.removeItem("pendingServiceIds");
+        }
+      } catch {}
 
       // Redirecionar para a página de posição
       router.push(`/posicao/${data.id}`);
@@ -154,7 +176,7 @@ export default function EntrarFila() {
                 onChange={(e) => setTelefone(e.target.value)}
                 required
                 className="w-full px-3 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#f2b63a]"
-                placeholder="(11) 99999-9999"
+                placeholder="(31) 99999-9999"
               />
             </div>
 

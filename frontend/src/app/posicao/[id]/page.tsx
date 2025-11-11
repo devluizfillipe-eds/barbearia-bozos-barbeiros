@@ -20,6 +20,12 @@ interface PositionData {
   pessoas_na_frente: number;
   status: string;
   hora_entrada: string;
+  servicos?: Array<{
+    id: number;
+    nome?: string;
+    name?: string;
+    preco?: number;
+  }>;
 }
 
 export default function MinhaPosicao() {
@@ -32,6 +38,13 @@ export default function MinhaPosicao() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Guarda o id atual para facilitar retorno futuro
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("queueEntryId", String(queueId));
+      }
+    } catch {}
+
     fetchPosition();
     // Atualizar a cada 30 segundos
     const interval = setInterval(fetchPosition, 30000);
@@ -70,16 +83,7 @@ export default function MinhaPosicao() {
     return statusMap[status] || status;
   };
 
-  const getStatusColor = (status: string) => {
-    const colorMap: { [key: string]: string } = {
-      AGUARDANDO: "text-yellow-500",
-      ATENDENDO: "text-green-500",
-      ATENDIDO: "text-blue-500",
-      DESISTIU: "text-red-500",
-      FALTOU: "text-red-500",
-    };
-    return colorMap[status] || "text-gray-400";
-  };
+  // getStatusColor removido (não utilizado)
 
   if (loading) {
     return (
@@ -205,6 +209,29 @@ export default function MinhaPosicao() {
                 </div>
                 <p className="text-gray-300">Status</p>
               </div>
+            </div>
+
+            {/* Serviços selecionados */}
+            <div className="bg-[#2e2d37] rounded-xl p-6 mb-6">
+              <h3 className="text-[#f2b63a] font-semibold mb-4 text-center text-lg">
+                Serviços Selecionados
+              </h3>
+              {positionData.servicos && positionData.servicos.length > 0 ? (
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {positionData.servicos.map((s) => (
+                    <span
+                      key={s.id}
+                      className="px-3 py-1 bg-[#4b4950] text-gray-200 rounded-full text-sm"
+                    >
+                      {s.nome || s.name || "Sem nome"}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-center text-sm">
+                  Nenhum serviço associado ao atendimento.
+                </p>
+              )}
             </div>
 
             {/* Informações Adicionais */}

@@ -8,13 +8,13 @@ interface DashboardMetrics {
   totalServices: number;
   averageWaitTime: number;
   servicesByBarber: {
-    barberId: string;
+    barberId: number;
     barberName: string;
     totalServices: number;
     revenue: number;
   }[];
   popularServices: {
-    serviceId: string;
+    serviceId: number;
     serviceName: string;
     count: number;
     revenue: number;
@@ -25,6 +25,8 @@ export default function DashboardAdmin() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [barbers, setBarbers] = useState<{ id: number; nome: string }[]>([]);
+  const [selectedBarber, setSelectedBarber] = useState<string>("");
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().setDate(new Date().getDate() - 30))
       .toISOString()
@@ -34,12 +36,21 @@ export default function DashboardAdmin() {
 
   useEffect(() => {
     fetchMetrics();
-  }, [dateRange]);
+  }, [dateRange, selectedBarber]);
+
+  useEffect(() => {
+    fetchBarbers();
+  }, []);
 
   const fetchMetrics = async () => {
     try {
+      const params = new URLSearchParams({
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+      });
+      if (selectedBarber) params.append("barberId", selectedBarber);
       const response = await fetch(
-        `http://localhost:3000/metrics?startDate=${dateRange.start}&endDate=${dateRange.end}`,
+        `http://localhost:3000/metrics?${params.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
@@ -56,6 +67,21 @@ export default function DashboardAdmin() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBarbers = async () => {
+    try {
+      const resp = await fetch("http://localhost:3000/barbers", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+      });
+      if (!resp.ok) throw new Error("Falha ao carregar barbeiros");
+      const data = await resp.json();
+      setBarbers(data);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -81,7 +107,7 @@ export default function DashboardAdmin() {
         <h2 className="text-xl font-semibold text-[#f2b63a] mb-4">
           Filtrar por Período
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1">
               Data Inicial
@@ -107,6 +133,21 @@ export default function DashboardAdmin() {
               }
               className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
             />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Barbeiro</label>
+            <select
+              value={selectedBarber}
+              onChange={(e) => setSelectedBarber(e.target.value)}
+              className="w-full px-4 py-2 bg-[#2e2d37] border border-gray-600 rounded-lg text-white focus:outline-none focus:border-[#f2b63a] transition-colors"
+            >
+              <option value="">Todos os barbeiros</option>
+              {barbers.map((b) => (
+                <option key={b.id} value={String(b.id)}>
+                  {b.nome}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

@@ -21,15 +21,9 @@ export default function PainelBarbeiro() {
   const router = useRouter();
   const [filaAtual, setFilaAtual] = useState<QueueEntry[]>([]);
   const [historico, setHistorico] = useState<QueueEntry[]>([]);
-
-  // Função para garantir que os dados são arrays
   const ensureArray = (data: any): QueueEntry[] => {
-    if (Array.isArray(data)) {
-      return data;
-    }
-    if (data && Array.isArray(data.queue)) {
-      return data.queue;
-    }
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.queue)) return data.queue;
     return [];
   };
   const [barber, setBarber] = useState<Barber | null>(null);
@@ -47,125 +41,64 @@ export default function PainelBarbeiro() {
   });
 
   useEffect(() => {
-    const checkAndFetchData = async () => {
-      // Verificar se o usuário está logado
+    let intervalId: number | undefined;
+    const init = async () => {
       const token = getToken();
       const user = getUser();
-
-      if (!token || !user) {
-        console.log("Token ou user não encontrado");
+      if (!token || !user || user.type !== "barber") {
         router.push("/barbeiro");
         return;
       }
-
-      try {
-        try {
-          if (user.type !== "barber") {
-            console.log("Usuário não é barbeiro");
-            router.push("/barbeiro");
-            return;
-          }
-
-          // Verificar se o barbeiro ainda existe no sistema
-          const response = await fetch(
-            `http://localhost:3000/barbers/${user.id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-          if (!response.ok) {
-            if (response.status === 404) {
-              console.log("Barbeiro não encontrado no sistema");
-              // Limpar dados do usuário e redirecionar
-              logout();
-              router.push("/barbeiro");
-              return;
-            }
-            throw new Error(`Erro ao verificar barbeiro: ${response.status}`);
-          }
-
-          const barberData = await response.json();
-          console.log("Barber data:", barberData);
-          setBarber(barberData);
-
-          // Iniciar busca de dados
-          await fetchData(user.id);
-
-          // Atualizar a cada 15 segundos
-          const interval = setInterval(() => fetchData(user.id), 15000);
-          return () => clearInterval(interval);
-        } catch (error) {
-          console.error("Erro ao processar dados do usuário:", error);
-          alert(
-            "Erro ao carregar dados do barbeiro. Por favor, faça login novamente."
-          );
-          logout();
-          router.push("/barbeiro");
-        }
-      } catch (error) {
-        console.error("Erro ao processar dados do usuário:", error);
-        alert(
-          "Erro ao carregar dados do barbeiro. Por favor, faça login novamente."
-        );
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+      const resp = await fetch(`http://localhost:3000/barbers/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        logout();
         router.push("/barbeiro");
+        return;
       }
+      const barberData = await resp.json();
+      setBarber(barberData);
+      await fetchData(user.id);
+      intervalId && clearInterval(intervalId);
+      intervalId = window.setInterval(() => fetchData(user.id), 15000);
     };
-
-    checkAndFetchData();
+    void init();
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [router]);
 
   const fetchData = async (barberId: number) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getToken();
       if (!token) {
-        throw new Error("Token não encontrado");
+        logout();
+        router.push("/barbeiro");
+        return;
       }
-
-      // Buscar fila atual
       const filaResponse = await fetch(
         `http://localhost:3000/queue/${barberId}/updates`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       ).catch(() => {
         throw new Error(
           "Não foi possível conectar ao servidor. Verifique se o backend está rodando."
         );
       });
-
-      // Buscar histórico
       const historicoResponse = await fetch(
         `http://localhost:3000/queue/${barberId}/historico`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       ).catch(() => {
         throw new Error(
           "Não foi possível conectar ao servidor. Verifique se o backend está rodando."
         );
       });
-
       if (!filaResponse.ok || !historicoResponse.ok) {
-        // Se alguma das respostas retornar 404, significa que o barbeiro não existe mais
         if (filaResponse.status === 404 || historicoResponse.status === 404) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          logout();
           router.push("/barbeiro");
-          throw new Error(
-            "Sua sessão expirou. Por favor, faça login novamente."
-          );
+          return;
         }
-
-        // Para outros erros, tentar obter mais detalhes
         let errorMessage = "Erro ao carregar dados:";
         if (!filaResponse.ok) {
           const filaError = await filaResponse.json();
@@ -177,27 +110,19 @@ export default function PainelBarbeiro() {
         }
         throw new Error(errorMessage);
       }
-
       const filaData = await filaResponse.json();
       const historicoData = await historicoResponse.json();
-
-      // Usar a função helper para garantir arrays válidos
       setFilaAtual(ensureArray(filaData));
       setHistorico(ensureArray(historicoData));
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
-
-      // Se for erro de autenticação ou barbeiro não encontrado
       if (
         error instanceof Error &&
         (error.message.includes("sessão expirou") ||
           error.message.includes("Token não encontrado"))
       ) {
-        // Já redirecionamos acima, não precisa fazer nada aqui
         return;
       }
-
-      // Para erros de conexão
       if (
         error instanceof Error &&
         error.message.includes("conectar ao servidor")
@@ -207,8 +132,6 @@ export default function PainelBarbeiro() {
         );
         return;
       }
-
-      // Para outros tipos de erro, mostrar mensagem específica
       alert(
         error instanceof Error
           ? error.message
@@ -222,13 +145,12 @@ export default function PainelBarbeiro() {
   const updateStatus = async (queueId: number, status: string) => {
     setUpdating(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = getToken();
       if (!token) {
-        throw new Error(
-          "Token não encontrado. Por favor, faça login novamente."
-        );
+        logout();
+        router.push("/barbeiro");
+        return;
       }
-
       const response = await fetch(
         `http://localhost:3000/queue/${queueId}/status`,
         {
@@ -240,25 +162,20 @@ export default function PainelBarbeiro() {
           body: JSON.stringify({ status }),
         }
       );
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
           errorData.message || "Erro ao atualizar status do cliente"
         );
       }
-
-      // Atualizar os dados após mudança
-      if (barber) {
-        fetchData(barber.id);
-      }
+      if (barber) fetchData(barber.id);
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
-      const errorMessage =
+      alert(
         error instanceof Error
           ? error.message
-          : "Erro desconhecido ao atualizar status";
-      alert(errorMessage);
+          : "Erro desconhecido ao atualizar status"
+      );
     } finally {
       setUpdating(false);
     }
@@ -266,39 +183,29 @@ export default function PainelBarbeiro() {
 
   const toggleDisponibilidade = async () => {
     if (!barber) return;
-
     if (!barber.disponivel) {
       setShowConfirmDialog(true);
       return;
     }
-
     await updateDisponibilidade();
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!barber || !e.target.files || e.target.files.length === 0) return;
-
     const file = e.target.files[0];
     const formData = new FormData();
     formData.append("foto", file);
-
     try {
-      const token = localStorage.getItem("token");
+      const token = getToken();
       const response = await fetch(
         `http://localhost:3000/barbers/${barber.id}/foto`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         }
       );
-
-      if (!response.ok) {
-        throw new Error("Erro ao atualizar foto");
-      }
-
+      if (!response.ok) throw new Error("Erro ao atualizar foto");
       const updatedBarber = await response.json();
       setBarber(updatedBarber);
     } catch (error) {
@@ -310,22 +217,12 @@ export default function PainelBarbeiro() {
   const updateDisponibilidade = async () => {
     try {
       if (!barber) return;
-
-      const token = localStorage.getItem("token");
+      const token = getToken();
       const response = await fetch(
         `http://localhost:3000/barbers/${barber.id}/disponibilidade`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { method: "PATCH", headers: { Authorization: `Bearer ${token}` } }
       );
-
-      if (!response.ok) {
-        throw new Error("Erro ao alterar disponibilidade");
-      }
-
+      if (!response.ok) throw new Error("Erro ao alterar disponibilidade");
       const updatedBarber = await response.json();
       setBarber(updatedBarber);
       setShowConfirmDialog(false);
@@ -337,21 +234,15 @@ export default function PainelBarbeiro() {
 
   const filterEntries = (entries: QueueEntry[]) => {
     return entries.filter((entry) => {
-      // Filtro por data
       if (filterDate) {
         const entryDate = new Date(entry.hora_entrada).toLocaleDateString();
-        if (entryDate !== new Date(filterDate).toLocaleDateString()) {
+        if (entryDate !== new Date(filterDate).toLocaleDateString())
           return false;
-        }
       }
-
-      // Filtro por serviço
       if (filterService && entry.servicos) {
-        if (!entry.servicos.some((service) => service.id === filterService)) {
+        if (!entry.servicos.some((service) => service.id === filterService))
           return false;
-        }
       }
-
       return true;
     });
   };
@@ -363,10 +254,10 @@ export default function PainelBarbeiro() {
 
   const handleAddClient = async () => {
     if (!barber) return;
-
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:3000/queue", {
+      const token = getToken();
+      // Enviar para o endpoint correto que aceita serviços
+      const response = await fetch("http://localhost:3000/queue/enter", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -374,27 +265,14 @@ export default function PainelBarbeiro() {
         },
         body: JSON.stringify({
           barbeiro_id: barber.id,
-          cliente: {
-            nome: newClient.nome,
-            telefone: newClient.telefone,
-          },
-          servicos: newClient.servicos,
+          nome: newClient.nome,
+          telefone: newClient.telefone,
+          serviceIds: newClient.servicos,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error("Erro ao adicionar cliente");
-      }
-
-      // Limpar formulário e fechar modal
-      setNewClient({
-        nome: "",
-        telefone: "",
-        servicos: [],
-      });
+      if (!response.ok) throw new Error("Erro ao adicionar cliente");
+      setNewClient({ nome: "", telefone: "", servicos: [] });
       setShowAddClientModal(false);
-
-      // Atualizar a fila
       fetchData(barber.id);
     } catch (error) {
       console.error("Erro:", error);
@@ -406,18 +284,14 @@ export default function PainelBarbeiro() {
     return (
       <div className="min-h-screen bg-[#2e2d37] text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#f2b63a] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-[#f2b63a] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="text-xl">Carregando...</div>
         </div>
       </div>
     );
   }
+  if (!barber) return null;
 
-  if (!barber) {
-    return null;
-  }
-
-  // Calcular estatísticas
   const totalAtendidos = Array.isArray(historico)
     ? historico.filter((entry) => entry.status === "ATENDIDO").length
     : 0;
@@ -430,13 +304,20 @@ export default function PainelBarbeiro() {
 
   return (
     <div className="min-h-screen bg-[#2e2d37] text-white">
-      {/* Header */}
-      <div className="w-full bg-[#26242d] py-6">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full bg-[#4b4950] overflow-hidden">
+      {/* Header mobile-first */}
+      <div className="w-full bg-[#26242d] py-5">
+        <div className="max-w-7xl mx-auto px-4 relative">
+          {/* Botão logout mobile posicionado no canto superior direito */}
+          <button
+            onClick={handleLogout}
+            className="sm:hidden absolute top-2 right-4 px-3 py-1 bg-[#4b4950] text-[#f2b63a] rounded-md text-[11px] font-medium shadow-sm hover:bg-[#3d3b42] transition-colors"
+          >
+            Sair
+          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="relative flex-shrink-0">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#4b4950] overflow-hidden">
                   {barber.foto_url ? (
                     <Image
                       src={getImageUrl(barber.foto_url) || ""}
@@ -448,7 +329,7 @@ export default function PainelBarbeiro() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[#f2b63a]">
                       <svg
-                        className="w-8 h-8"
+                        className="w-7 h-7"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -463,10 +344,10 @@ export default function PainelBarbeiro() {
                 </div>
                 <label
                   htmlFor="foto-upload"
-                  className="absolute bottom-0 right-0 bg-[#f2b63a] rounded-full p-1 cursor-pointer hover:bg-[#d9a434] transition-colors"
+                  className="absolute -bottom-1 -right-1 bg-[#f2b63a] rounded-full p-1 cursor-pointer hover:brightness-110 transition-colors"
                 >
                   <svg
-                    className="w-4 h-4 text-[#2e2d37]"
+                    className="w-3.5 h-3.5 text-[#2e2d37]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -493,66 +374,61 @@ export default function PainelBarbeiro() {
                   className="hidden"
                 />
               </div>
-              <div>
-                <h1 className="text-2xl text-[#f2b63a] font-[700] font-['Almendra'] tracking-wider">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-2xl text-[#f2b63a] font-[700] font-['Almendra'] tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">
                   PAINEL DO BARBEIRO
                 </h1>
-                <p className="text-gray-400 text-sm">
+                <p className="text-gray-400 text-xs sm:text-sm mt-1">
                   Bem-vindo, {barber.nome}
+                </p>
+                {/* Status textual no mobile */}
+                <p
+                  className={`sm:hidden text-[11px] mt-1 font-semibold tracking-wider ${
+                    barber.disponivel ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  STATUS: {barber.disponivel ? "ONLINE" : "OFFLINE"}
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center space-x-4">
-              {/* Status de Disponibilidade */}
-              <div
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  barber.disponivel
-                    ? "bg-green-900/20 text-green-400 border border-green-500/20"
-                    : "bg-red-900/20 text-red-400 border border-red-500/20"
+            {/* Desktop actions */}
+            <div className="hidden sm:flex items-center gap-3">
+              <p
+                className={`text-xs font-semibold tracking-wider ${
+                  barber.disponivel ? "text-green-400" : "text-red-400"
                 }`}
               >
-                <div className="flex items-center space-x-2">
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      barber.disponivel
-                        ? "bg-green-400 animate-pulse"
-                        : "bg-red-400"
-                    }`}
-                  ></div>
-                  <span>
-                    {barber.disponivel ? "Disponível" : "Indisponível"}
-                  </span>
-                </div>
-              </div>
-
+                STATUS: {barber.disponivel ? "ONLINE" : "OFFLINE"}
+              </p>
               <button
                 onClick={toggleDisponibilidade}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  barber.disponivel
-                    ? "bg-red-900/20 text-red-400 border border-red-500/20 hover:bg-red-900/30"
-                    : "bg-green-900/20 text-green-400 border border-green-500/20 hover:bg-green-900/30"
-                }`}
+                className="px-3 py-1.5 rounded-md text-xs font-medium border border-[#4b4950]/50 text-gray-300 hover:bg-[#4b4950]/20 transition-colors"
               >
-                {barber.disponivel ? "Ficar Indisponível" : "Ficar Disponível"}
+                {barber.disponivel ? "ficar indisponivel" : "ficar disponivel"}
               </button>
-
-              {/* Botão Logout */}
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm"
+                className="px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-xs font-medium"
               >
                 Sair
+              </button>
+            </div>
+            {/* Mobile actions (logout movido para canto superior direito) */}
+            <div className="sm:hidden w-full grid grid-cols-1 gap-2 mt-1">
+              <button
+                onClick={toggleDisponibilidade}
+                className="px-3 py-2 rounded-md text-[10px] font-medium border border-[#4b4950]/50 text-gray-300 hover:bg-[#4b4950]/20 transition-colors leading-tight"
+              >
+                {barber.disponivel ? "ficar indisponivel" : "ficar disponivel"}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Conteúdo */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Tabs */}
+      {/* Conteúdo principal */}
+      <div className="container mx-auto px-4 py-6 sm:py-8">
+        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
           <div className="flex border-b border-[#4b4950]/20">
             <button
               onClick={() => setActiveTab("fila")}
@@ -576,11 +452,9 @@ export default function PainelBarbeiro() {
             </button>
           </div>
 
-          {/* Conteúdo das Tabs */}
           {activeTab === "fila" && (
             <div className="space-y-6">
-              <div className="bg-[#26242d] rounded-xl p-6">
-                {/* Botão Adicionar Cliente */}
+              <div className="bg-[#26242d] rounded-xl p-4 sm:p-6">
                 <button
                   onClick={() => setShowAddClientModal(true)}
                   className="w-full sm:w-auto px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium flex items-center"
@@ -600,7 +474,6 @@ export default function PainelBarbeiro() {
                   </svg>
                   Adicionar Cliente
                 </button>
-
                 <div className="space-y-3 mt-6">
                   {!Array.isArray(filaAtual) || filaAtual.length === 0 ? (
                     <div className="text-center text-gray-400 py-8">
@@ -612,38 +485,30 @@ export default function PainelBarbeiro() {
                         key={entry.id}
                         className="p-4 bg-[#2e2d37] rounded-lg border border-[#4b4950]/20"
                       >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-medium text-[#f2b63a] mb-1">
-                              {entry.cliente.nome}
-                            </h3>
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="text-gray-400">
-                                Telefone: {entry.cliente.telefone}
-                              </div>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2">
+                              <h3 className="font-medium text-[#f2b63a]">
+                                {entry.cliente.nome}
+                              </h3>
                               <span
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                className={`text-xs sm:text-sm ${
                                   entry.status === "ATENDENDO"
-                                    ? "bg-green-900/20 text-green-400 border border-green-500/20"
+                                    ? "text-green-400"
                                     : entry.status === "AGUARDANDO"
-                                      ? "bg-[#4b4950]/20 text-[#f2b63a] border border-[#f2b63a]/20"
-                                      : entry.status === "DESISTIU"
-                                        ? "bg-yellow-900/20 text-yellow-400 border border-yellow-500/20"
-                                        : entry.status === "FALTOU"
-                                          ? "bg-red-900/20 text-red-400 border border-red-500/20"
-                                          : "bg-[#4b4950]/20 text-gray-400"
+                                      ? "text-white"
+                                      : "text-gray-400"
                                 }`}
                               >
                                 {entry.status === "ATENDENDO"
-                                  ? "Em Atendimento"
+                                  ? "em atendimento"
                                   : entry.status === "AGUARDANDO"
-                                    ? "Aguardando"
-                                    : entry.status === "DESISTIU"
-                                      ? "Desistiu"
-                                      : entry.status === "FALTOU"
-                                        ? "Faltou"
-                                        : entry.status}
+                                    ? "aguardando"
+                                    : entry.status.toLowerCase()}
                               </span>
+                            </div>
+                            <div className="text-sm text-gray-400 mt-1">
+                              Telefone: {entry.cliente.telefone}
                             </div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {entry.servicos && entry.servicos.length > 0 ? (
@@ -652,7 +517,9 @@ export default function PainelBarbeiro() {
                                     key={servico.id}
                                     className="px-2 py-1 bg-[#4b4950]/20 text-gray-300 rounded text-xs"
                                   >
-                                    {servico.name}
+                                    {(servico as any).name ||
+                                      (servico as any).nome ||
+                                      "Sem nome"}
                                   </span>
                                 ))
                               ) : (
@@ -662,43 +529,33 @@ export default function PainelBarbeiro() {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="mt-3 sm:mt-0 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                             {entry.status === "AGUARDANDO" && (
                               <button
                                 onClick={() =>
                                   updateStatus(entry.id, "ATENDENDO")
                                 }
                                 disabled={updating}
-                                className="px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium"
+                                className="px-4 py-2 bg-[#4b4950] text-green-400 rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Iniciar Atendimento
                               </button>
                             )}
-
                             {entry.status === "ATENDENDO" && (
                               <button
                                 onClick={() =>
                                   updateStatus(entry.id, "ATENDIDO")
                                 }
                                 disabled={updating}
-                                className="px-4 py-2 bg-green-900/20 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-900/30 transition-colors text-sm font-medium"
+                                className="px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Finalizar Atendimento
                               </button>
                             )}
-
-                            <button
-                              onClick={() => updateStatus(entry.id, "DESISTIU")}
-                              disabled={updating || entry.status === "ATENDIDO"}
-                              className="px-4 py-2 bg-yellow-900/20 text-yellow-400 border border-yellow-500/20 rounded-lg hover:bg-yellow-900/30 transition-colors text-sm font-medium"
-                            >
-                              Desistiu
-                            </button>
-
                             <button
                               onClick={() => updateStatus(entry.id, "FALTOU")}
                               disabled={updating || entry.status === "ATENDIDO"}
-                              className="px-4 py-2 bg-red-900/20 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-900/30 transition-colors text-sm font-medium"
+                              className="px-4 py-2 bg-[#4b4950] text-red-400 rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Faltou
                             </button>
@@ -714,8 +571,7 @@ export default function PainelBarbeiro() {
 
           {activeTab === "historico" && (
             <div className="space-y-6">
-              {/* Filtros */}
-              <div className="bg-[#26242d] rounded-xl p-6">
+              <div className="bg-[#26242d] rounded-xl p-4 sm:p-6">
                 <Filters
                   filterDate={filterDate}
                   onDateChange={setFilterDate}
@@ -727,8 +583,7 @@ export default function PainelBarbeiro() {
                   }}
                 />
               </div>
-
-              <div className="bg-[#26242d] rounded-xl p-6">
+              <div className="bg-[#26242d] rounded-xl p-4 sm:p-6">
                 {filterEntries(historico).length === 0 ? (
                   <div className="text-center text-gray-400 py-8">
                     Nenhum atendimento no histórico
@@ -765,7 +620,9 @@ export default function PainelBarbeiro() {
                                     key={servico.id}
                                     className="px-2 py-1 bg-[#4b4950]/20 text-gray-300 rounded text-xs"
                                   >
-                                    {servico.name}
+                                    {(servico as any).name ||
+                                      (servico as any).nome ||
+                                      "Sem nome"}
                                   </span>
                                 ))
                               ) : (
@@ -795,9 +652,8 @@ export default function PainelBarbeiro() {
             </div>
           )}
 
-          {/* Estatísticas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-[#26242d] rounded-xl p-6 text-center">
+            <div className="bg-[#26242d] rounded-xl p-4 sm:p-6 text-center">
               <h3 className="text-gray-400 text-sm font-medium mb-2">
                 Na Fila
               </h3>
@@ -805,7 +661,7 @@ export default function PainelBarbeiro() {
                 {filaAtual.length}
               </div>
             </div>
-            <div className="bg-[#26242d] rounded-xl p-6 text-center">
+            <div className="bg-[#26242d] rounded-xl p-4 sm:p-6 text-center">
               <h3 className="text-gray-400 text-sm font-medium mb-2">
                 Atendendo
               </h3>
@@ -813,7 +669,7 @@ export default function PainelBarbeiro() {
                 {totalAtendendo}
               </div>
             </div>
-            <div className="bg-[#26242d] rounded-xl p-6 text-center">
+            <div className="bg-[#26242d] rounded-xl p-4 sm:p-6 text-center">
               <h3 className="text-gray-400 text-sm font-medium mb-2">
                 Atendidos
               </h3>
@@ -821,7 +677,7 @@ export default function PainelBarbeiro() {
                 {totalAtendidos}
               </div>
             </div>
-            <div className="bg-[#26242d] rounded-xl p-6 text-center">
+            <div className="bg-[#26242d] rounded-xl p-4 sm:p-6 text-center">
               <h3 className="text-gray-400 text-sm font-medium mb-2">Faltas</h3>
               <div className="text-2xl font-bold text-red-400">
                 {totalFaltas}
@@ -829,7 +685,6 @@ export default function PainelBarbeiro() {
             </div>
           </div>
 
-          {/* Modal de Adicionar Cliente */}
           <Modal
             isOpen={showAddClientModal}
             onClose={() => setShowAddClientModal(false)}
@@ -873,15 +728,12 @@ export default function PainelBarbeiro() {
                         type="checkbox"
                         checked={newClient.servicos.includes(servico.id)}
                         onChange={(e) => {
-                          const updatedServices = e.target.checked
+                          const updated = e.target.checked
                             ? [...newClient.servicos, servico.id]
                             : newClient.servicos.filter(
                                 (id) => id !== servico.id
                               );
-                          setNewClient({
-                            ...newClient,
-                            servicos: updatedServices,
-                          });
+                          setNewClient({ ...newClient, servicos: updated });
                         }}
                         className="mr-3 h-4 w-4 rounded border-[#4b4950]/20 text-[#f2b63a] focus:ring-[#f2b63a] focus:ring-offset-0 bg-[#26242d]"
                       />
@@ -920,7 +772,6 @@ export default function PainelBarbeiro() {
             </div>
           </Modal>
 
-          {/* Modal de Confirmação */}
           <Modal
             isOpen={showConfirmDialog}
             onClose={() => setShowConfirmDialog(false)}
@@ -946,7 +797,6 @@ export default function PainelBarbeiro() {
             </div>
           </Modal>
 
-          {/* Informação de atualização */}
           <div className="flex justify-end mt-4">
             <p className="text-gray-500 text-xs">
               Atualizando automaticamente a cada 15 segundos

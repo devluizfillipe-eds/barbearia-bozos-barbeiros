@@ -9,7 +9,8 @@ export class MetricsController {
   async getMetrics(
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('barberId') barberId?: string,
   ) {
-    return this.metricsService.getMetrics(startDate, endDate);
+    return this.metricsService.getMetrics(startDate, endDate, barberId);
   }
 }

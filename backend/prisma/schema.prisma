@@ -63,6 +63,7 @@ model Queue {
 
   cliente  User   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   barbeiro Barber @relation(fields: [barbeiro_id], references: [id], onDelete: Cascade)
+  services QueueService[]
 
   @@map("queue")
 }
@@ -75,7 +76,24 @@ model Service {
   preco        Float?
   ativo        Boolean  @default(true)
 
+  queueLinks QueueService[]
+
   @@map("services")
+}
+
+model QueueService {
+  id         Int    @id @default(autoincrement())
+  queue_id   Int
+  service_id Int
+  preco_aplicado Float?
+  tempo_estimado_aplicado Int?
+
+  queue   Queue   @relation(fields: [queue_id], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@map("queue_services")
+  @@index([queue_id])
+  @@index([service_id])
 }
 
 model Log {

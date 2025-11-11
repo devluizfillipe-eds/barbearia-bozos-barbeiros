@@ -44,12 +44,6 @@ export interface AdminProfile {
   data_criacao: string;
 }
 
-export interface PublicAdmin {
-  id: number;
-  nome: string;
-  foto_url?: string | null;
-}
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export async function fetchAPI<T>(
@@ -109,14 +103,7 @@ export async function fetchAdminProfile(token: string): Promise<AdminProfile> {
   });
 }
 
-export async function fetchFeaturedAdmin(): Promise<PublicAdmin | null> {
-  try {
-    return await fetchAPI<PublicAdmin | null>("/public/admin");
-  } catch (error) {
-    console.error("Erro ao buscar admin em destaque:", error);
-    return null;
-  }
-}
+// Removido: fetchFeaturedAdmin e tipo PublicAdmin não são mais utilizados
 
 // Função para verificar estado do backend
 export async function checkHealth(): Promise<boolean> {

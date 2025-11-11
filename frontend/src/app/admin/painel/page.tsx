@@ -86,7 +86,7 @@ export default function AdminPanel() {
 
       const data = await response.json();
       setBarbers(data);
-    } catch (err) {
+    } catch {
       setError("Erro ao carregar lista de barbeiros");
     } finally {
       setLoading(false);
@@ -121,7 +121,7 @@ export default function AdminPanel() {
       setNewBarberLogin("");
       setNewBarberPassword("");
       fetchBarbers();
-    } catch (err) {
+    } catch {
       setError("Erro ao adicionar barbeiro");
     } finally {
       setAddingBarber(false);
@@ -152,7 +152,7 @@ export default function AdminPanel() {
       }
 
       fetchBarbers();
-    } catch (err) {
+    } catch {
       setError("Erro ao atualizar status do barbeiro");
     }
   };

@@ -6,13 +6,8 @@ interface ModalProps {
   className?: string;
 }
 
-export function Modal({
-  title,
-  isOpen,
-  onClose,
-  children,
-  className = "",
-}: ModalProps) {
+export function Modal(props: ModalProps) {
+  const { title, isOpen, children, className = "" } = props;
   if (!isOpen) return null;
 
   return (
@@ -23,6 +18,14 @@ export function Modal({
         <h3 className="text-xl font-[700] text-[#f2b63a] font-['Almendra'] mb-6">
           {title}
         </h3>
+        <button
+          type="button"
+          onClick={props.onClose}
+          className="absolute top-4 right-4 text-[#f2b63a] hover:brightness-110"
+          aria-label="Fechar modal"
+        >
+          ×
+        </button>
         {children}
       </div>
     </div>

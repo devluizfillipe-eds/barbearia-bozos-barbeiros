@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { fetchServices } from "@/lib/api";
 
-import { Service } from "@/lib/api";
-
 interface ServiceSelectorProps {
   onServiceSelect: (selectedServices: number[]) => void;
   selectedServices: number[];
