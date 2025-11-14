@@ -118,26 +118,59 @@ export class AuthService {
 
   async setup() {
     try {
-      // Criar admin
-      const adminSenhaHash = await bcrypt.hash('123456', 12);
-      const admin = await this.prisma.admin.create({
-        data: {
-          nome: 'Adriano',
-          login: 'adriano.adm',
+      const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? '123456';
+      const adminLogin = process.env.SEED_ADMIN_LOGIN ?? 'adriano';
+      const adminName = process.env.SEED_ADMIN_NAME ?? 'Adriano';
+      const adminFotoEnv = process.env.SEED_ADMIN_PHOTO_URL;
+      const adminSenhaHash = await bcrypt.hash(adminPassword, 12);
+
+      const admin = await this.prisma.admin.upsert({
+        where: { login: adminLogin },
+        update: {
+          nome: adminName,
           senha_hash: adminSenhaHash,
+          ...(adminFotoEnv !== undefined
+            ? { foto_url: adminFotoEnv || null }
+            : {}),
+        },
+        create: {
+          nome: adminName,
+          login: adminLogin,
+          senha_hash: adminSenhaHash,
+          ...(adminFotoEnv !== undefined
+            ? { foto_url: adminFotoEnv || null }
+            : {}),
         },
       });
 
-      // Criar barbeiro
-      const barbeiroPwd = await bcrypt.hash('123456', 12);
-      const barbeiro = await this.prisma.barber.create({
-        data: {
-          nome: 'Adriano',
-          login: 'adriano',
-          senha_hash: barbeiroPwd,
+      const barberLoginEnv = process.env.SEED_ADMIN_BARBER_LOGIN;
+      const barberLogin = barberLoginEnv ?? `${admin.login}.barber`;
+      const barberPassword =
+        process.env.SEED_ADMIN_BARBER_PASSWORD ?? adminPassword;
+      const barberHash = await bcrypt.hash(barberPassword, 12);
+      const barberPhoto =
+        process.env.SEED_ADMIN_BARBER_PHOTO_URL !== undefined
+          ? process.env.SEED_ADMIN_BARBER_PHOTO_URL || null
+          : (admin.foto_url ?? null);
+
+      const barbeiro = await this.prisma.barber.upsert({
+        where: { login: barberLogin },
+        update: {
+          nome: admin.nome,
+          senha_hash: barberHash,
+          adminId: admin.id,
           ativo: true,
           disponivel: true,
-          adminId: admin.id, // Vinculando o barbeiro ao admin
+          foto_url: barberPhoto,
+        },
+        create: {
+          nome: admin.nome,
+          login: barberLogin,
+          senha_hash: barberHash,
+          ativo: true,
+          disponivel: true,
+          adminId: admin.id,
+          foto_url: barberPhoto,
         },
       });
 
@@ -228,9 +261,72 @@ export class AuthService {
 
     // Se for admin, verifica se também é barbeiro
     if (loginDto.type === 'admin') {
-      const barber = await this.prisma.barber.findFirst({
+      let barber = await this.prisma.barber.findFirst({
         where: { adminId: user.id },
       });
+      if (
+        barber &&
+        // @ts-ignore Campo será reconhecido após atualizar o client Prisma
+        'foto_url' in user &&
+        // @ts-ignore
+        user.foto_url &&
+        // Se barbeiro está sem foto, sincroniza com admin
+        barber.foto_url !== user.foto_url
+      ) {
+        barber = await this.prisma.barber.update({
+          where: { id: barber.id },
+          data: {
+            // @ts-ignore
+            foto_url: user.foto_url,
+          },
+        });
+      }
+      if (!barber) {
+        // Cria automaticamente um barbeiro vinculado para restaurar o atendimento
+        const randomPass = Math.random().toString(36).slice(-8);
+        const senha_hash = await bcrypt.hash(randomPass, 12);
+        const barberLogin = `${user.login}.barber`;
+
+        try {
+          barber = await this.prisma.barber.create({
+            data: {
+              nome: user.nome,
+              login: barberLogin,
+              senha_hash,
+              adminId: user.id,
+              ativo: true,
+              disponivel: true,
+              // Mantém a foto do admin visível para os clientes
+              // @ts-ignore Campo será reconhecido após atualizar o client Prisma
+              foto_url: 'foto_url' in user ? (user.foto_url ?? null) : null,
+            },
+          });
+        } catch (error) {
+          // Se houver conflito de login, tenta reaproveitar atualizando o registro existente
+          const existing = await this.prisma.barber.findUnique({
+            where: { login: barberLogin },
+          });
+
+          if (existing) {
+            barber = await this.prisma.barber.update({
+              where: { id: existing.id },
+              data: {
+                nome: user.nome,
+                adminId: user.id,
+                ativo: true,
+                disponivel: true,
+                // @ts-ignore Campo será reconhecido após atualizar o client Prisma
+                foto_url:
+                  'foto_url' in user && user.foto_url !== undefined
+                    ? user.foto_url
+                    : existing.foto_url,
+              },
+            });
+          } else {
+            throw error;
+          }
+        }
+      }
       if (barber) {
         roles.push('barber');
         barberId = barber.id;

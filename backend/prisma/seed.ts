@@ -1,46 +1,71 @@
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaClient, type Admin } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  // Garantir que exista um admin padrão com credenciais conhecidas
-  const defaultAdminData = {
-    nome: 'Administrador',
-    login: 'admin',
-    senha_hash: await bcrypt.hash('admin123', 10),
-  };
+const ensureAdminAsBarber = async (adminRecord: Admin, password: string) => {
+  const barberLogin = `${adminRecord.login}.barber`;
+  const barberPasswordHash = await bcrypt.hash(password, 12);
 
-  await prisma.admin.upsert({
-    where: { login: defaultAdminData.login },
+  await prisma.barber.upsert({
+    where: { adminId: adminRecord.id },
     update: {
-      senha_hash: defaultAdminData.senha_hash,
-      nome: defaultAdminData.nome,
+      nome: adminRecord.nome,
+      login: barberLogin,
+      senha_hash: barberPasswordHash,
+      ativo: true,
+      disponivel: true,
+      foto_url: adminRecord.foto_url ?? null,
     },
-    create: defaultAdminData,
+    create: {
+      nome: adminRecord.nome,
+      login: barberLogin,
+      senha_hash: barberPasswordHash,
+      adminId: adminRecord.id,
+      ativo: true,
+      disponivel: true,
+      foto_url: adminRecord.foto_url ?? null,
+    },
   });
 
-  // Criar/Atualizar admin fixo
-  const adminData = {
-    nome: 'Adriano',
-    login: 'adriano',
-    senha_hash: await bcrypt.hash('123456', 12),
-  };
+  console.log('Admin vinculado a barbeiro:', {
+    adminId: adminRecord.id,
+    barberLogin,
+  });
+};
+
+async function main() {
+  const adminName = process.env.SEED_ADMIN_NAME ?? 'Adriano';
+  const adminLogin = process.env.SEED_ADMIN_LOGIN ?? 'adriano';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? '123456';
+  const adminPhotoEnv = process.env.SEED_ADMIN_PHOTO_URL;
+
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  const photoData =
+    adminPhotoEnv !== undefined ? { foto_url: adminPhotoEnv || null } : {};
 
   const admin = await prisma.admin.upsert({
-    where: { login: adminData.login },
+    where: { login: adminLogin },
     update: {
-      senha_hash: adminData.senha_hash,
-      nome: adminData.nome,
+      nome: adminName,
+      senha_hash: passwordHash,
+      ...photoData,
     },
-    create: adminData,
+    create: {
+      nome: adminName,
+      login: adminLogin,
+      senha_hash: passwordHash,
+      ...photoData,
+    },
   });
 
-  console.log('Admin fixo criado/atualizado:', {
+  console.log('Admin seed aplicado:', {
     id: admin.id,
-    nome: admin.nome,
     login: admin.login,
   });
+
+  await ensureAdminAsBarber(admin, adminPassword);
 
   // Primeiro, limpa a tabela de serviços existente
   await prisma.service.deleteMany();

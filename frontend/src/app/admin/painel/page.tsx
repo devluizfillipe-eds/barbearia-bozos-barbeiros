@@ -13,15 +13,17 @@ interface AdminProfile {
 }
 
 interface Barber {
-  id: string;
+  id: number;
   nome: string;
   disponivel: boolean;
+  foto_url?: string | null;
 }
 
 export default function AdminPanel() {
   const router = useRouter();
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [barbers, setBarbers] = useState<Barber[]>([]);
+  const [associatedBarber, setAssociatedBarber] = useState<Barber | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newBarberName, setNewBarberName] = useState("");
@@ -62,10 +64,28 @@ export default function AdminPanel() {
 
       const data: AdminProfile = await response.json();
       setAdminProfile(data);
+      // tenta buscar barbeiro associado
+      void fetchAssociatedBarber(data.id);
     } catch (err) {
       console.error(err);
       setError("Não foi possível carregar os dados do administrador");
     }
+  };
+
+  const fetchAssociatedBarber = async (adminId: number) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const resp = await fetch(
+        `http://localhost:3000/barbers?adminId=${adminId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!resp.ok) return;
+      const data: Barber[] = await resp.json();
+      if (data.length > 0) setAssociatedBarber(data[0]);
+    } catch {}
   };
 
   const fetchBarbers = async () => {
@@ -129,7 +149,7 @@ export default function AdminPanel() {
   };
 
   const toggleBarberStatus = async (
-    barberId: string,
+    barberId: number,
     currentStatus: boolean
   ) => {
     try {
@@ -157,6 +177,34 @@ export default function AdminPanel() {
     }
   };
 
+  const deleteBarber = async (barberId: number, barberName: string) => {
+    // Confirmação simples para evitar exclusões acidentais
+    const confirmDeletion = window.confirm(
+      `Tem certeza que deseja remover o barbeiro "${barberName}"?`
+    );
+    if (!confirmDeletion) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/barbers/${barberId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao remover barbeiro");
+      }
+
+      fetchBarbers();
+    } catch {
+      setError("Erro ao remover barbeiro");
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
     localStorage.removeItem("token");
@@ -169,30 +217,40 @@ export default function AdminPanel() {
     if (!token || !event.target.files || event.target.files.length === 0) {
       return;
     }
-
     const file = event.target.files[0];
     const formData = new FormData();
     formData.append("foto", file);
-
     try {
       setUploadingPhoto(true);
-      const response = await fetch("http://localhost:3000/admins/me/foto", {
+      const endpoint = associatedBarber
+        ? `http://localhost:3000/barbers/${associatedBarber.id}/foto`
+        : "http://localhost:3000/admins/me/foto";
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-
-      if (!response.ok) {
-        throw new Error("Erro ao atualizar foto do administrador");
+      if (!response.ok) throw new Error("Erro ao enviar foto");
+      const updated = await response.json();
+      if (associatedBarber) {
+        setAssociatedBarber(updated as Barber);
+        setAdminProfile((prev) =>
+          prev
+            ? { ...prev, foto_url: (updated as Barber).foto_url || null }
+            : prev
+        );
+      } else {
+        setAdminProfile(updated as AdminProfile);
+        if ((updated as AdminProfile).id)
+          void fetchAssociatedBarber((updated as AdminProfile).id);
       }
-
-      const updatedProfile: AdminProfile = await response.json();
-      setAdminProfile(updatedProfile);
     } catch (err) {
       console.error(err);
-      setError("Não foi possível atualizar a foto do administrador");
+      setError(
+        associatedBarber
+          ? "Não foi possível atualizar a foto do barbeiro associado"
+          : "Não foi possível atualizar a foto do administrador"
+      );
     } finally {
       setUploadingPhoto(false);
       event.target.value = "";
@@ -218,18 +276,33 @@ export default function AdminPanel() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 rounded-full bg-[#4b4950] overflow-hidden">
+                <div className="w-16 h-16 rounded-full bg-[#4b4950] overflow-hidden group">
                   <Image
                     src={
-                      adminProfile?.foto_url
-                        ? (getImageUrl(adminProfile.foto_url) ??
-                          "/images/logo.jpg")
+                      associatedBarber?.foto_url || adminProfile?.foto_url
+                        ? getImageUrl(
+                            (associatedBarber?.foto_url ||
+                              adminProfile?.foto_url) as string
+                          ) || "/images/logo.jpg"
                         : "/images/logo.jpg"
                     }
                     alt={adminProfile?.nome ?? "Administrador"}
                     width={64}
                     height={64}
                     className="w-full h-full object-cover"
+                  />
+                  <label
+                    htmlFor="admin-foto-upload"
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[11px] text-[#f2b63a] cursor-pointer transition-opacity"
+                  >
+                    {uploadingPhoto ? "Enviando..." : "Alterar"}
+                  </label>
+                  <input
+                    id="admin-foto-upload"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
                   />
                 </div>
               </div>
@@ -264,17 +337,33 @@ export default function AdminPanel() {
 
         <div className="bg-[#26242d] rounded-xl shadow-lg p-6 border border-gray-700/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 bg-[#2e2d37] rounded-full overflow-hidden flex items-center justify-center border border-[#f2b63a]/30">
+            <div className="relative w-20 h-20 bg-[#2e2d37] rounded-full overflow-hidden flex items-center justify-center border border-[#f2b63a]/30 group">
               <Image
                 src={
-                  adminProfile?.foto_url
-                    ? (getImageUrl(adminProfile.foto_url) ?? "/images/logo.jpg")
+                  associatedBarber?.foto_url || adminProfile?.foto_url
+                    ? getImageUrl(
+                        (associatedBarber?.foto_url ||
+                          adminProfile?.foto_url) as string
+                      ) || "/images/logo.jpg"
                     : "/images/logo.jpg"
                 }
                 alt={`Foto de ${adminProfile?.nome ?? "Administrador"}`}
                 width={80}
                 height={80}
                 className="w-full h-full object-cover"
+              />
+              <label
+                htmlFor="admin-foto-upload-secondary"
+                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-[#f2b63a] cursor-pointer transition-opacity"
+              >
+                {uploadingPhoto ? "Enviando..." : "Alterar"}
+              </label>
+              <input
+                id="admin-foto-upload-secondary"
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={handlePhotoUpload}
+                className="hidden"
               />
             </div>
             <div>
@@ -286,22 +375,25 @@ export default function AdminPanel() {
                   ? `Login: ${adminProfile.login}`
                   : "Carregando dados do administrador..."}
               </p>
+              {associatedBarber && (
+                <p className="text-gray-500 text-xs mt-1">
+                  Barbeiro associado: {associatedBarber.nome}
+                </p>
+              )}
+              {!associatedBarber && (
+                <p className="text-gray-500 text-xs mt-1">
+                  Nenhum barbeiro associado — associe para que a foto apareça
+                  aos clientes.
+                </p>
+              )}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <label
-              htmlFor="admin-photo-input"
-              className="cursor-pointer px-4 py-2 bg-[#4b4950] text-[#f2b63a] rounded-lg hover:bg-[#3d3b42] transition-colors text-sm font-medium"
-            >
-              {uploadingPhoto ? "Atualizando..." : "Atualizar foto"}
-            </label>
-            <input
-              id="admin-photo-input"
-              type="file"
-              accept="image/png,image/jpeg"
-              onChange={handlePhotoUpload}
-              className="hidden"
-            />
+            <p className="text-xs text-gray-400">
+              {associatedBarber
+                ? "A foto será exibida na lista pública de barbeiros."
+                : "Associe-se a um barbeiro para que a foto seja exibida aos clientes."}
+            </p>
           </div>
         </div>
 
@@ -384,13 +476,19 @@ export default function AdminPanel() {
                   </span>
                   <button
                     onClick={() =>
-                      toggleBarberStatus(barber.id, barber.disponivel)
+                      toggleBarberStatus(Number(barber.id), barber.disponivel)
                     }
                     className="px-4 py-2 bg-[#4b4950] text-white rounded-lg hover:bg-[#3d3b42] transition-colors"
                   >
                     {barber.disponivel
                       ? "Marcar Indisponível"
                       : "Marcar Disponível"}
+                  </button>
+                  <button
+                    onClick={() => deleteBarber(barber.id, barber.nome)}
+                    className="px-4 py-2 bg-red-600/80 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Remover
                   </button>
                 </div>
               </div>

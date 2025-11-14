@@ -30,7 +30,7 @@ export class AdminController {
         id: true,
         nome: true,
         login: true,
-        // @ts-ignore Campo será reconhecido após atualizar o cliente Prisma
+        // @ts-ignore Campo será reconhecido após atualizar o client Prisma
         foto_url: true,
         data_criacao: true,
         barber: true,
@@ -49,7 +49,7 @@ export class AdminController {
         id: true,
         nome: true,
         login: true,
-        // @ts-ignore Campo será reconhecido após atualizar o cliente Prisma
+        // @ts-ignore Campo será reconhecido após atualizar o client Prisma
         foto_url: true,
         data_criacao: true,
       },
@@ -62,21 +62,45 @@ export class AdminController {
     @Body() data: { nome: string; login: string; password: string },
   ) {
     const senha_hash = await bcrypt.hash(data.password, 10);
-    return this.prisma.admin.create({
+    const admin = await this.prisma.admin.create({
       data: {
         nome: data.nome,
         login: data.login,
         senha_hash,
       },
-      select: {
-        id: true,
-        nome: true,
-        login: true,
-        // @ts-ignore Campo será reconhecido após atualizar o cliente Prisma
-        foto_url: true,
-        data_criacao: true,
+    });
+
+    // Garante que o admin recém-criado também possa atuar como barbeiro
+    await this.prisma.barber.upsert({
+      where: { adminId: admin.id },
+      update: {
+        nome: admin.nome,
+        login: `${admin.login}.barber`,
+        senha_hash,
+        ativo: true,
+        disponivel: true,
+        // Mantém foto do admin sincronizada com o barbeiro vinculado
+        foto_url: admin.foto_url ?? null,
+      },
+      create: {
+        nome: admin.nome,
+        login: `${admin.login}.barber`,
+        senha_hash,
+        adminId: admin.id,
+        ativo: true,
+        disponivel: true,
+        foto_url: admin.foto_url ?? null,
       },
     });
+
+    return {
+      id: admin.id,
+      nome: admin.nome,
+      login: admin.login,
+      // @ts-ignore Campo será reconhecido após atualizar o client Prisma
+      foto_url: admin.foto_url,
+      data_criacao: admin.data_criacao,
+    };
   }
 
   @Post('me/foto')
@@ -111,20 +135,57 @@ export class AdminController {
     const adminId = req.user?.userId;
     const fileUrl = `/uploads/${file.filename}`;
 
-    return this.prisma.admin.update({
+    // Atualiza foto do admin
+    const updatedAdmin = await this.prisma.admin.update({
       where: { id: adminId },
       data: {
-        // @ts-ignore Campo será reconhecido após atualizar o cliente Prisma
         foto_url: fileUrl,
       },
       select: {
         id: true,
         nome: true,
         login: true,
-        // @ts-ignore Campo será reconhecido após atualizar o cliente Prisma
         foto_url: true,
         data_criacao: true,
       },
     });
+
+    // Sincroniza foto com barbeiro associado
+    try {
+      let barber = await this.prisma.barber.findUnique({
+        where: { adminId: adminId },
+        select: { id: true },
+      });
+
+      // Se não existir barbeiro associado, criar automaticamente
+      if (!barber) {
+        const randomPass = Math.random().toString(36).slice(2, 10);
+        const senha_hash = await bcrypt.hash(randomPass, 10);
+        const created = await this.prisma.barber.create({
+          data: {
+            nome: updatedAdmin.nome,
+            login: `${updatedAdmin.login}.barber`,
+            senha_hash,
+            adminId: updatedAdmin.id,
+            ativo: true,
+            disponivel: true,
+            // @ts-ignore
+            foto_url: fileUrl,
+          },
+          select: { id: true },
+        });
+        barber = created;
+      } else {
+        await this.prisma.barber.update({
+          where: { id: barber.id },
+          data: { foto_url: fileUrl },
+          select: { id: true },
+        });
+      }
+    } catch (e) {
+      // Não interromper fluxo em caso de erro
+    }
+
+    return updatedAdmin;
   }
 }

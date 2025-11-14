@@ -101,6 +101,32 @@ export default function BarbeirosAdmin() {
     }
   };
 
+  const deleteBarber = async (id: string, name: string) => {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja remover o barbeiro "${name}"?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/barbers/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || "Falha ao remover barbeiro");
+      }
+
+      fetchBarbers();
+    } catch (err: any) {
+      setError(err.message || "Erro ao remover barbeiro");
+      console.error(err);
+    }
+  };
+
   const startEditing = (barber: Barber) => {
     setEditingBarber(barber.id);
     setEditForm({
@@ -308,6 +334,12 @@ export default function BarbeirosAdmin() {
                       {barber.disponivel
                         ? "Marcar Indisponível"
                         : "Marcar Disponível"}
+                    </button>
+                    <button
+                      onClick={() => deleteBarber(barber.id, barber.nome)}
+                      className="w-full sm:w-auto px-4 py-2 bg-red-600/80 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                    >
+                      Remover
                     </button>
                   </div>
                 </>
