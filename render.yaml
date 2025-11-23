@@ -28,4 +28,4 @@ services:
         fromService:
           type: web
           name: barbearia-backend
-          property: url
+          property: host

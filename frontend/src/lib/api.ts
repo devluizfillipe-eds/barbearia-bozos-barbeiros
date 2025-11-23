@@ -44,7 +44,12 @@ export interface AdminProfile {
   data_criacao: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+let API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+// Se a URL não começar com http (ex: veio apenas o host do Render), adiciona https://
+if (!API_URL.startsWith('http')) {
+  API_URL = `https://${API_URL}`;
+}
 
 export async function fetchAPI<T>(
   endpoint: string,
