@@ -7,7 +7,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install && npm run build
-    startCommand: npx prisma migrate deploy && npm run start:prod
+    startCommand: npm run start:prod
     envVars:
       - key: DATABASE_URL
         value: "postgresql://postgres.daaznrtulbmzeuxangbz:10989484000105@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true"
