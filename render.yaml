@@ -6,11 +6,11 @@ services:
     region: oregon
     plan: free
     rootDir: backend
-    buildCommand: npm install && npm run build && npx prisma migrate deploy
-    startCommand: npm run start:prod
+    buildCommand: npm install && npm run build
+    startCommand: npx prisma migrate deploy && npm run start:prod
     envVars:
       - key: DATABASE_URL
-        value: "postgresql://postgres:10989484000105@db.daaznrtulbmzeuxangbz.supabase.co:6543/postgres?pgbouncer=true"
+        value: "postgresql://postgres:10989484000105@db.daaznrtulbmzeuxangbz.supabase.co:5432/postgres"
       - key: JWT_SECRET
         generateValue: true
 
