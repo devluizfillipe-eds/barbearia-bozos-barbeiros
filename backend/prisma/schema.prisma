@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,94 +12,88 @@ model User {
   nome         String
   telefone     String   @unique
   data_criacao DateTime @default(now())
-
   queueEntries Queue[]
 
   @@map("users")
 }
 
 model Barber {
-  id         Int      @id @default(autoincrement())
-  nome       String
-  login      String   @unique
-  senha_hash String
-  foto_url   String?  // Campo adicionado para foto de perfil
-  ativo      Boolean  @default(true)
-  disponivel   Boolean  @default(true) 
+  id           Int      @id @default(autoincrement())
+  nome         String
+  login        String   @unique
+  senha_hash   String
+  foto_url     String?
+  ativo        Boolean  @default(true)
+  disponivel   Boolean  @default(true)
   data_criacao DateTime @default(now())
-  adminId    Int?    @unique
-  admin      Admin?   @relation(fields: [adminId], references: [id])
-
+  adminId      Int?     @unique
+  admin        Admin?   @relation(fields: [adminId], references: [id])
   queueEntries Queue[]
 
-  @@map("barbers")
   @@index([adminId])
+  @@map("barbers")
 }
 
 model Admin {
-  id         Int      @id @default(autoincrement())
-  nome       String
-  login      String   @unique
-  senha_hash String
-  foto_url   String?
+  id           Int      @id @default(autoincrement())
+  nome         String
+  login        String   @unique
+  senha_hash   String
   data_criacao DateTime @default(now())
-  
-  barber     Barber?
+  foto_url     String?
+  barber       Barber?
 
   @@map("admins")
 }
 
 model Queue {
-  id          Int       @id @default(autoincrement())
-  cliente_id  Int
-  barbeiro_id Int
-  status      QueueStatus @default(AGUARDANDO)
-  posicao     Int
-  hora_entrada DateTime  @default(now())
-  hora_saida  DateTime?
-
-  cliente  User   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
-  barbeiro Barber @relation(fields: [barbeiro_id], references: [id], onDelete: Cascade)
-  services QueueService[]
+  id           Int            @id @default(autoincrement())
+  cliente_id   Int
+  barbeiro_id  Int
+  status       QueueStatus    @default(AGUARDANDO)
+  posicao      Int
+  hora_entrada DateTime       @default(now())
+  hora_saida   DateTime?
+  barbeiro     Barber         @relation(fields: [barbeiro_id], references: [id], onDelete: Cascade)
+  cliente      User           @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  services     QueueService[]
 
   @@map("queue")
 }
 
 model Service {
-  id           Int      @id @default(autoincrement())
-  nome         String
-  descricao    String?
-  tempo_estimado Int    // em minutos
-  preco        Float?
-  ativo        Boolean  @default(true)
-
-  queueLinks QueueService[]
+  id             Int            @id @default(autoincrement())
+  nome           String
+  descricao      String?
+  tempo_estimado Int
+  preco          Float?
+  ativo          Boolean        @default(true)
+  queueLinks     QueueService[]
 
   @@map("services")
 }
 
 model QueueService {
-  id         Int    @id @default(autoincrement())
-  queue_id   Int
-  service_id Int
-  preco_aplicado Float?
+  id                      Int     @id @default(autoincrement())
+  queue_id                Int
+  service_id              Int
+  preco_aplicado          Float?
   tempo_estimado_aplicado Int?
+  queue                   Queue   @relation(fields: [queue_id], references: [id], onDelete: Cascade)
+  service                 Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
 
-  queue   Queue   @relation(fields: [queue_id], references: [id], onDelete: Cascade)
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
-
-  @@map("queue_services")
   @@index([queue_id])
   @@index([service_id])
+  @@map("queue_services")
 }
 
 model Log {
-  id        Int      @id @default(autoincrement())
-  acao      String
-  detalhes  String?
-  timestamp DateTime @default(now())
-  usuario_id Int?
-  usuario_tipo String? // 'cliente', 'barbeiro', 'admin'
+  id           Int      @id @default(autoincrement())
+  acao         String
+  detalhes     String?
+  timestamp    DateTime @default(now())
+  usuario_id   Int?
+  usuario_tipo String?
 
   @@map("logs")
 }
