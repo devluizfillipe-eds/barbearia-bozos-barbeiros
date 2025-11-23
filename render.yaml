@@ -5,7 +5,7 @@ services:
     runtime: node
     region: oregon
     plan: free
-    rootDirectory: backend
+    rootDir: backend
     buildCommand: npm install && npm run build && npx prisma migrate deploy
     startCommand: npm run start:prod
     envVars:
@@ -20,7 +20,7 @@ services:
     runtime: node
     region: oregon
     plan: free
-    rootDirectory: frontend
+    rootDir: frontend
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
