@@ -10,7 +10,7 @@ services:
     startCommand: npm run start:prod
     envVars:
       - key: DATABASE_URL
-        value: "postgresql://postgres:10989484000105@db.daaznrtulbmzeuxangbz.supabase.co:5432/postgres"
+        value: "postgresql://postgres:10989484000105@db.daaznrtulbmzeuxangbz.supabase.co:6543/postgres?pgbouncer=true"
       - key: JWT_SECRET
         generateValue: true
 
