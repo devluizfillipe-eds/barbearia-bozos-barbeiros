@@ -44,7 +44,7 @@ export interface AdminProfile {
   data_criacao: string;
 }
 
-let API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+let API_URL = process.env.NEXT_PUBLIC_API_URL || "https://barbearia-backend-diq0.onrender.com";
 
 // Se a URL não começar com http (ex: veio apenas o host do Render), adiciona https://
 if (!API_URL.startsWith('http')) {
